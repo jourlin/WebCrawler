@@ -1,0 +1,167 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <curl/curl.h>
+
+#define MAXPAGESIZE (100*1024*1024) /* 100 Mb */
+#define MAXURLSIZE (100*1024) /* 100 Kb */
+
+exec sql include sqlca;
+exec sql begin declare section;
+	int nurls;
+	char currentBody[MAXPAGESIZE];
+	char *currentBodyRead=currentBody;
+	char currentURL[MAXURLSIZE];
+	char currentRoot[MAXURLSIZE];
+	char currentRootURL[MAXURLSIZE];
+	unsigned long int currentID;
+	unsigned long int toID;
+	char currentEffectiveRootURL[MAXURLSIZE];
+exec sql end declare section;
+
+void checkErrorCode(void){
+	if(sqlca.sqlcode!=0){
+		if(sqlca.sqlcode!=-403){
+    			printf("error code %ld, message %s, rows %ld, warning %c\n", 
+    			sqlca.sqlcode,sqlca.sqlerrm.sqlerrmc, sqlca.sqlerrd[2], 
+    			sqlca.sqlwarn[0]);
+		}
+		else {
+			// don't worry it's just that we already have got this url
+		}
+	}
+}
+
+size_t curl_write( void *ptr, size_t size, size_t nmemb, void *stream)
+{
+	memcpy(currentBodyRead, ptr, size*nmemb);
+	currentBodyRead+=size*nmemb;
+	*currentBodyRead='\0';
+	// printf("[%s]", currentBody);
+	return size*nmemb;
+}
+
+int getNextURL(bool reinit){
+	static const char *tag="href=\"";
+	static char *start=currentBody;
+	if(reinit){
+		start=currentBody;
+		return TRUE;
+	}
+	char *end=start;
+	start=strstr(start, tag);
+	if(start!=NULL){
+		start+=strlen(tag);
+		end=strstr(start, "\"");
+		memcpy(currentURL, start, (size_t) (end-start));
+		*(currentURL+(size_t) (end-start))='\0';
+		start=end;
+	}
+	return start!=NULL;
+}
+
+int insertURL(void){
+	static char tmp[MAXURLSIZE];	 
+	char *offset;
+
+	if(currentURL[0]=='/'){				// deals with relative paths
+		strcpy(tmp, currentURL);
+		strcpy(currentURL, currentRoot);
+		strcat(currentURL, tmp);
+	};	
+	if(currentURL[strlen(currentURL)-1]=='/')
+		currentURL[strlen(currentURL)-1]='\0'; // remove final '/'
+	if(strstr(currentURL, "://")!=NULL){ // ignore badly formed urls
+		exec sql BEGIN WORK;
+		exec sql INSERT INTO node (url, checked) VALUES (:currentURL, NULL) RETURNING id INTO :toID; 
+		checkErrorCode();
+        	exec sql COMMIT WORK;
+		exec sql BEGIN WORK;
+		exec sql INSERT INTO links ("from", "to") VALUES (:currentID , :toID) ; 
+		checkErrorCode();
+        	exec sql COMMIT WORK;
+
+	}
+}
+
+void getDirFromURL(char *url){
+	char *offset=url+strlen(url)-1;
+	while(offset >= url && *offset!='/')
+		offset--;
+	if(offset>=url+3 && *offset=='/' && *(offset-1)=='/' && *(offset-2)==':'){
+		// found nothing to trim
+		return;	
+	}
+	else{
+		*offset='\0';
+	}
+}
+
+int main(void) {
+	CURL *curl;
+	CURLcode res;
+	
+	exec sql connect to 'unix:postgresql:locahost' ;
+	checkErrorCode();
+
+	
+
+	while(1){
+		/*exec sql BEGIN WORK;
+		exec sql SELECT count(*) into :nurls FROM node ; 
+		checkErrorCode();
+		if(sqlca.sqlcode==0)
+			printf("Number of URLs in database SPIDER : %d\n", nurls);
+		exec sql COMMIT WORK;
+		*/
+		exec sql BEGIN WORK;
+
+		exec sql SELECT url, id into :currentRootURL, :currentID FROM node WHERE checked IS NULL ORDER BY length(url) LIMIT 1 ; 
+		checkErrorCode();
+		if(sqlca.sqlcode!=0)
+			return;
+		exec sql COMMIT WORK;
+		getNextURL(TRUE); // initialize
+		currentBodyRead=currentBody; // initialize
+		curl = curl_easy_init();
+		if(curl){
+    			curl_easy_setopt(curl, CURLOPT_URL, currentRootURL);
+    			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
+    			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write);
+ 			curl_easy_setopt(curl, CURLOPT_HEADER, 1);
+			curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
+   			res = curl_easy_perform(curl);
+    			if(CURLE_OK == res) {
+     	 			char *ct;
+				char *trim;
+				res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &ct);
+				strcpy(currentEffectiveRootURL, ct);
+				if(currentURL[strlen(currentURL)-1]=='/')
+					currentURL[strlen(currentURL)-1]='\0'; // remove final '/'
+
+				strcpy(currentRoot, ct);
+				getDirFromURL(currentRoot);
+
+				//printf("DirPath: %s\nRoot : %s\nEffective : %s\n", currentRoot, currentRootURL, currentEffectiveRootURL);
+				
+     	 			res = curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &ct);
+	    			if(ct && ((strcmp(ct,"text/html")==0)||(strcmp(ct,"text/xml")==0))){
+					curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
+                        		res = curl_easy_perform(curl);
+  	 				while(getNextURL(FALSE))
+						insertURL();
+				}
+			}	   
+		}
+		exec sql BEGIN WORK;
+		exec sql UPDATE node SET checked=now(), effectiveurl=:currentEffectiveRootURL WHERE url=:currentRootURL; 
+		checkErrorCode();
+		if(sqlca.sqlcode!=0)
+			return;
+		exec sql COMMIT WORK;
+		curl_easy_cleanup(curl);    
+	}
+	exec sql disconnect all;
+	return EXIT_SUCCESS;
+}
+

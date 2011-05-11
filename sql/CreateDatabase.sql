@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS node;
+CREATE TABLE node (
+    id SERIAL PRIMARY KEY,
+    url text NOT NULL UNIQUE
+);
+
+DROP TABLE IF EXISTS links;
+CREATE TABLE links (
+    id integer NOT NULL,
+    "from" integer NOT NULL REFERENCES node(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    "to" integer NOT NULL REFERENCES node(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    UNIQUE ("from", "to")
+);
