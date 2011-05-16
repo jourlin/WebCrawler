@@ -52,11 +52,17 @@ int getNextURL(bool reinit){
 	if(start!=NULL){
 		start+=strlen(tag);
 		end=strstr(start, "\"");
-		memcpy(currentURL, start, (size_t) (end-start));
-		*(currentURL+(size_t) (end-start))='\0';
+		if(end!=NULL){
+			if((end-start) <MAXURLSIZE){
+				memcpy(currentURL, start, (size_t) (end-start));
+				*(currentURL+(size_t) (end-start))='\0';
+			}
+			else
+				end=NULL;
+		}
 		start=end;
 	}
-	return start!=NULL;
+	return (start!=NULL);
 }
 
 int insertURL(void){
