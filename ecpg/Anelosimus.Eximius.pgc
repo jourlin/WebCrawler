@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <curl/curl.h>
+#include <unistd.h>
+#include <sys/types.h> 
 
 #define MAXPAGESIZE (100*1024*1024) /* 100 Mb */
 #define MAXURLSIZE (100*1024) /* 100 Kb */
@@ -105,7 +107,10 @@ void getDirFromURL(char *url){
 int main(void) {
 	CURL *curl;
 	CURLcode res;
-	
+	pid_t pid;
+	if ((pid = getpid()) < 0) {
+	  perror("unable to get pid");
+	};
 	exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
 
@@ -121,10 +126,14 @@ int main(void) {
 		*/
 		exec sql BEGIN WORK;
 
-		exec sql SELECT url, id into :currentRootURL, :currentID FROM node WHERE checked IS NULL ORDER BY length(url) LIMIT 1 ; 
+		exec sql SELECT url, id into :currentRootURL, :currentID FROM node WHERE checked IS NULL ORDER BY length(url) OFFSET (round(random()*100)) LIMIT 1 ; 
 		checkErrorCode();
 		if(sqlca.sqlcode!=0)
 			return;
+		exec sql UPDATE node SET checked=now(), effectiveurl=:currentEffectiveRootURL WHERE url=:currentRootURL;
+                checkErrorCode();
+                if(sqlca.sqlcode!=0)
+                        return;
 		exec sql COMMIT WORK;
 		getNextURL(TRUE); // initialize
 		currentBodyRead=currentBody; // initialize
@@ -149,7 +158,7 @@ int main(void) {
 				getDirFromURL(currentRoot);
 
 				//printf("DirPath: %s\nRoot : %s\nEffective : %s\n", currentRoot, currentRootURL, currentEffectiveRootURL);
-				
+				printf("[%d] Processing %s\n", pid, currentEffectiveRootURL);
      	 			res = curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &ct);
 	    			if(ct && ((strcmp(ct,"text/html")==0)||(strcmp(ct,"text/xml")==0))){
 					curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
@@ -159,12 +168,6 @@ int main(void) {
 				}
 			}	   
 		}
-		exec sql BEGIN WORK;
-		exec sql UPDATE node SET checked=now(), effectiveurl=:currentEffectiveRootURL WHERE url=:currentRootURL; 
-		checkErrorCode();
-		if(sqlca.sqlcode!=0)
-			return;
-		exec sql COMMIT WORK;
 		curl_easy_cleanup(curl);    
 	}
 	exec sql disconnect all;
