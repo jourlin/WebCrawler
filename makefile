@@ -1,4 +1,4 @@
-all: CreateTables bin/Anelosimus.Eximius
+all:  bin/Anelosimus.Eximius
 
 CreateTables: sql/CreateTables.sql 
 	psql -f sql/CreateTables.sql 
