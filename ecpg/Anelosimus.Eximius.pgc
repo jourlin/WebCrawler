@@ -9,7 +9,7 @@
 
 
 #define MAXURLSIZE	(100*1024) /* 100 Kb */
-#define MAXCO		10	// Max parrallel connections
+#define MAXCO		50	// Max parrallel connections
 #define MAXTLD		10	// Max number of chars in top level domain
 
 
@@ -217,7 +217,7 @@ int main(void) {
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE tld='fr' AND checked IS NULL ORDER BY length(url) ASC LIMIT 10 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY length(url) ASC LIMIT 50 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
@@ -241,6 +241,7 @@ int main(void) {
 			nburls++;
 		}
 		EXEC SQL CLOSE url_cursor;
+		EXEC SQL COMMIT WORK;
 		curl_global_init(CURL_GLOBAL_ALL);
 		cm = curl_multi_init();
 		//fprintf(stderr, "processing %ld urls\n", nburls);			
