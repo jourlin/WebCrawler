@@ -59,11 +59,9 @@
 #include <sys/types.h> 
 #include <signal.h>
 
-
 #define MAXURLSIZE	(100*1024) /* 100 Kb */
 #define MAXCO		50	// Max parrallel connections
 #define MAXTLD		10	// Max number of chars in top level domain
-
 
 exec sql include sqlca;
 exec sql begin declare section;
@@ -89,7 +87,7 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "spider@localhost"; // Data for connection if needed
 const char *user = "hypolite";
-const char *password = "******";
+const char *password = "";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -220,7 +218,7 @@ static void init(CURLM *cm, int i, unsigned long header)
   curl_easy_setopt(eh, CURLOPT_FOLLOWLOCATION, 1);
   curl_easy_setopt(eh, CURLOPT_WRITEFUNCTION, curl_write);
   curl_easy_setopt(eh, CURLOPT_WRITEDATA, (void *) (long int) i);
-  curl_easy_setopt(eh, CURLOPT_HEADER, 1L);
+  curl_easy_setopt(eh, CURLOPT_HEADER, header);
   curl_easy_setopt(eh, CURLOPT_NOBODY, header);
   curl_easy_setopt(eh, CURLOPT_TIMEOUT, 1L); 
   curl_easy_setopt(eh, CURLOPT_PRIVATE, url_chunk[i]);
@@ -237,6 +235,51 @@ void terminate(int sig) {
         printf("\nInterrupted ! Cancelling the crawl on %s\n", currentRootURL);
 	curl_global_cleanup();
         exit(sig);
+}
+
+void xhtml2text(char *mem){
+	char *pt=mem;
+	while(*pt!=0){				// parse until the end of string
+		while(*pt!=0 && *pt!='<')	// copy text when outside a tag
+			*mem++=*pt++;
+		while(*pt!=0 && *pt!='>')	// ignore text when inside a tag
+			pt++;
+		if(*pt){
+			*mem++='\n';
+			pt++;
+		}
+	};
+	*mem=0;					// terminate the new, shortened string
+}
+
+void drop_blanks(char *mem){
+	char *pt=mem;
+	while(*pt!=0){				// parse until the end of string
+		while(*pt!=0 && *pt!=' ' && *pt!='\t' && *pt !='\r' && *pt!='\n')	// copy text
+			*mem++=*pt++;
+		while(*pt!=0 && (*pt==' '||*pt=='\t'||*pt=='\r'||*pt=='\n'))	// ignore blanks
+			pt++;
+		if(*pt)
+			*mem++=' ';
+	};
+	*mem=0;					// terminate the new, shortened string
+}
+
+void drop_content(char *mem, const char *tstart, const char *tend){
+	char *start, *end;
+
+	start=strstr(mem, tstart);
+	do{
+		if(start==NULL)	// Done
+			return;
+		else
+			end=strstr(start, tend);
+		if(end==NULL)
+			*start=0;	// remove all the text starting with <script 
+		else
+			strcpy(start, end+strlen(tend));	// remove the text between script tags
+		start=strstr(start, tstart);
+	}while(1);
 }
 
 int main(void) {
@@ -268,7 +311,7 @@ int main(void) {
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY length(url) ASC LIMIT 50 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE tld='fr' AND checked IS NULL ORDER BY length(url) ASC LIMIT 50 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
@@ -431,6 +474,12 @@ int main(void) {
 				MaxPageSize=currentBody[C].size;
 				fprintf(stderr, "*** New maximum page size %ld\n", MaxPageSize);
 			}
+			drop_content(currentBody[C].memory, "<script ", "</script>");
+			drop_content(currentBody[C].memory, "<style ", "</style>");
+			xhtml2text(currentBody[C].memory);
+			drop_blanks(currentBody[C].memory);
+			exec sql UPDATE node SET content=to_tsvector('public.pg', :currentBody[C].memory) WHERE url=:url_chunk[C];
+			//printf("Content of %s:\n [%s]\n", url_chunk[C], currentBody[C].memory);
 			if(currentBody[C].memory)
 				free(currentBody[C].memory);
   		}
@@ -441,5 +490,4 @@ int main(void) {
 	EXEC SQL disconnect all;
 	return EXIT_SUCCESS;
 }
-
 

@@ -3,7 +3,9 @@ CREATE TABLE node (
     id BIGSERIAL PRIMARY KEY,
     url text NOT NULL UNIQUE,
     effectiveurl text,
-    checked timestamp with time zone
+    checked timestamp with time zone,
+    tld VARCHAR(10),
+    content tsvector
 );
 
 DROP TABLE IF EXISTS links CASCADE;
@@ -18,16 +20,10 @@ CREATE TABLE links (
 DROP TABLE IF EXISTS domain CASCADE;
 CREATE TABLE domain (
     id BIGSERIAL PRIMARY KEY,
-    name text NOT NULL UNIQUE,
+    name text NOT NULL UNIQUE
 );
 
-DROP TABLE IF EXISTS tld CASCADE;
-CREATE TABLE node (
-
-    id BIGSERIAL PRIMARY KEY,
-    url text NOT NULL UNIQUE,
-    effectiveurl text,
-    checked timestamp with time zone
-);
-
+CREATE TEXT SEARCH CONFIGURATION public.pg ( COPY = pg_catalog.simple); 
+CREATE TEXT SEARCH DICTIONARY scratch (TEMPLATE = simple);
+ALTER TEXT SEARCH CONFIGURATION public.pg ALTER MAPPING FOR asciiword WITH scratch;
 
