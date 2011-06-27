@@ -474,6 +474,8 @@ int main(void) {
 				MaxPageSize=currentBody[C].size;
 				fprintf(stderr, "*** New maximum page size %ld\n", MaxPageSize);
 			}
+			drop_content(currentBody[C].memory, "<!--", "-->");
+
 			drop_content(currentBody[C].memory, "<script ", "</script>");
 			drop_content(currentBody[C].memory, "<style ", "</style>");
 			xhtml2text(currentBody[C].memory);
