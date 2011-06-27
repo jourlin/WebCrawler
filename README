@@ -1,1 +1,34 @@
-Updating on github : git push -u origin master
+***********************************************************************
+*********** a Collaborative, Open, Webcrawler (COW) *******************
+***********                                         *******************
+*************       (c) Pierre Jourlin 2001.   ************************
+***********************************************************************
+***********************************************************************
+
+
+- Install : 
+0. if needed, install GNU/gcc and PostgreSQL in your O.S.
+1. make sql/CreateTables.sql or simply execute the sql 
+commands its contains on your database.
+2. edit ecpg/Anelosimus.Eximius.pgc and include your database 
+details in the source (lines 88-90 and 305-308)
+3. mkdir bin
+3. make bin/Anelosimus.Eximius
+4. insert a few starting urls in the table "node". 
+Except "url" and "tld", all values should be set to NULL.
+5. bin/Anelosimus.Eximius & 
+6. the above will start a process that crawls 50 urls in parrallel. 
+You can start any number of processes on any number of machines. 
+7. the crawl strategy is described as a simple SQL query that fetch 
+the urls to be crawled. e.g. : 
+Anelosimus.Eximius.pgc, line 314 : 
+exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE tld='fr' 
+AND checked IS NULL ORDER BY length(url) ASC LIMIT 50 FOR UPDATE ;";
+(here the process fetches the 50 shortest url that were not yet visited 
+from the ".fr" top level domain). If you need to change this strategy, 
+simply edit this line and go to step 3.
+
+
+*** note *** Updating the sources on github : 
+- git commit -a
+- git push -u origin master
