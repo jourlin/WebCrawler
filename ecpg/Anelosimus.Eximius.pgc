@@ -480,7 +480,7 @@ int main(void) {
 			drop_content(currentBody[C].memory, "<style ", "</style>");
 			xhtml2text(currentBody[C].memory);
 			drop_blanks(currentBody[C].memory);
-			exec sql UPDATE node SET content=to_tsvector('public.pg', :currentBody[C].memory) WHERE url=:url_chunk[C];
+			exec sql UPDATE node SET content=:currentBody[C].memory WHERE url=:url_chunk[C];
 			//printf("Content of %s:\n [%s]\n", url_chunk[C], currentBody[C].memory);
 			if(currentBody[C].memory)
 				free(currentBody[C].memory);
