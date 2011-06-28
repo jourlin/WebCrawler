@@ -5,7 +5,7 @@ CREATE TABLE node (
     effectiveurl text,
     checked timestamp with time zone,
     tld VARCHAR(10),
-    content tsvector
+    content text
 );
 
 DROP TABLE IF EXISTS links CASCADE;
