@@ -5,6 +5,13 @@
 ***************      http://www.jourlin.com    ************************
 ***********************************************************************
 
+- For approved developpers only : 
+> sudo apt-get git-core 
+> ssh-keygen -t rsa -C "your_email@youremail.com"
+> send the file .ssh/id_rsa.pub to pierre.jourlin@univ-avignon.fr to be added.
+> wait for confirmation
+> git clone git@github.com:jourlin/WebCrawler.git
+> cd WebCrawler
 
 - Install : 
 0. if needed, install GNU/gcc and PostgreSQL in your O.S.
