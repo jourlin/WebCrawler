@@ -17,6 +17,7 @@
 0. if needed, install GNU/gcc and PostgreSQL in your O.S.
 1. make sql/CreateTables.sql or simply execute the sql 
 commands its contains on your database.
+e.g. : psql -Umyrole -dmybase -W -f "sql/CreateTables.sql"
 2. edit ecpg/Anelosimus.Eximius.pgc and include your database 
 details in the source (lines 88-90 and 305-308)
 3. mkdir bin
