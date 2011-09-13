@@ -15,6 +15,7 @@
 
 - Install : 
 0. if needed, install GNU/gcc and PostgreSQL in your O.S.
+you will also need the following packages : libecpg-dev, libcurl3-dev
 1. make sql/CreateTables.sql or simply execute the sql 
 commands its contains on your database.
 e.g. : psql -Umyrole -dmybase -W -f "sql/CreateTables.sql"
