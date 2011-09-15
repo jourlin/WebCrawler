@@ -60,7 +60,7 @@
 #include <signal.h>
 
 #define MAXURLSIZE	(100*1024) /* 100 Kb */
-#define MAXCO		50	// Max parrallel connections
+#define MAXCO		10000	// Max parrallel connections
 #define MAXTLD		10	// Max number of chars in top level domain
 
 exec sql include sqlca;
@@ -85,9 +85,9 @@ exec sql begin declare section;
 	char currentEffectiveRootURL[MAXURLSIZE];
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
-const char *target = "spider@localhost"; // Data for connection if needed
-const char *user = "hypolite";
-const char *password = "";
+const char *target = "webcrawler@localhost"; // Data for connection if needed
+const char *user = "jourlin";
+const char *password = "??????????";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -303,15 +303,15 @@ int main(void) {
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
-//	exec sql connect to :target USER :user USING :password;
+	exec sql connect to :target USER :user USING :password;
 // 	if no details are needed, simply do :
-	exec sql connect to 'unix:postgresql:locahost' ;
+//	exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
-
+	exec sql SET CLIENT_ENCODING TO 'LATIN1'; 
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE tld='fr' AND checked IS NULL ORDER BY length(url) ASC LIMIT 50 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE (tld='fr' OR tld='org' OR tld='com') AND checked IS NULL ORDER BY length(url) ASC LIMIT 10000 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
