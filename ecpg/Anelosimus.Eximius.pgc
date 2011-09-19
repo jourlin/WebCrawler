@@ -60,7 +60,7 @@
 #include <signal.h>
 
 #define MAXURLSIZE	(100*1024) /* 100 Kb */
-#define MAXCO		10000	// Max parrallel connections
+#define MAXCO		2000	// Max parrallel connections
 #define MAXTLD		10	// Max number of chars in top level domain
 
 exec sql include sqlca;
@@ -303,15 +303,15 @@ int main(void) {
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
-	exec sql connect to :target USER :user USING :password;
+//	exec sql connect to :target USER :user USING :password;
 // 	if no details are needed, simply do :
-//	exec sql connect to 'unix:postgresql:locahost' ;
+	exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
 	exec sql SET CLIENT_ENCODING TO 'LATIN1'; 
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE (tld='fr' OR tld='org' OR tld='com') AND checked IS NULL ORDER BY length(url) ASC LIMIT 10000 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY length(url) ASC LIMIT 2000 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
