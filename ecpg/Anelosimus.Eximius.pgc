@@ -60,7 +60,7 @@
 #include <signal.h>
 
 #define MAXURLSIZE	(100*1024) /* 100 Kb */
-#define MAXCO		2000	// Max parrallel connections
+#define MAXCO		20	// Max parrallel connections
 #define MAXTLD		10	// Max number of chars in top level domain
 
 exec sql include sqlca;
@@ -77,17 +77,23 @@ exec sql begin declare section;
 	char currentURL[MAXURLSIZE];
 	char url_chunk[MAXCO][MAXURLSIZE];
 	short int url_todo[MAXCO];
+	char currentPro[MAXURLSIZE];
+	char currentSub[MAXURLSIZE];
+	char currentDom[MAXURLSIZE];
 	char currentTLD[MAXURLSIZE];
+	char currentPath[MAXURLSIZE];
 	char currentRoot[MAXURLSIZE];
 	char currentRootURL[MAXURLSIZE];
 	unsigned long int currentID;
 	unsigned long int toID;
+	unsigned long int domainID;
+	
 	char currentEffectiveRootURL[MAXURLSIZE];
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost"; // Data for connection if needed
-const char *user = "jourlin";
-const char *password = "??????????";
+const char *user = "pierrot";
+const char *password = "******";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -148,31 +154,53 @@ int getNextURL(bool reinit, int idx){
 	return (start!=NULL);
 }
 
-void GetTLD(char* tld, char* url)
+void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* url)
 {
-	char  *tmp;
-	while(*url!='\0' && *url !='/') { // end of the protocol's field
-		url++;
+	char  *tmp, *start;
+	printf("split[%s]\n", url);
+	while(*url!='\0' && *url !=':') { // end of the protocol's field
+		*prot++=*url++;
 	}	
+	*prot='\0';
 	url++;
-	if(*url!='/')
-		*tld='\0';	// something wrong
-	else 
+	while(*url=='/')
 		url++;
-	while(*url!='\0' && *url !='/') { // end of the protocol's field
-		url++;
-	}	
-	// *url should now contain the next character after the last character of tld
-	tmp=url-1;
-	while(*tmp!='.')
+	start=subdom;
+	while(*url!='\0' && *url!='/') { // end of domain
+		*subdom++=*url++;
+	}
+	strcpy(path, url);
+	*url='\0';
+	*subdom='\0';
+	// GET TLD
+	tmp=subdom-1;
+	while(*tmp!='.' && *tmp!='/')
 		tmp--; // find the 1st char of TLD; 
+	*tmp='\0';
+	subdom=tmp; // on the dot before the TLD
 	tmp++;
-	if(url-tmp < MAXTLD)
-		while(tmp!=url)
+	while(*tmp!='\0'&&*tmp!='/')
 			*tld++=*tmp++; // copy tld
 	*tld='\0';
+	// GET Domain
+	tmp=subdom-1; // the last char of domain
+	while(tmp!=start && *tmp!='.')
+		tmp--; // find the 1st char of Dom; 
+	if(tmp!=start){
+		*tmp='\0';
+		tmp++;
+	}
+	else{
+		*dom++=*tmp++; // copy domain
+		*start='\0';
+	}
+	while(*tmp!='\0')
+		*dom++=*tmp++; // copy domain
+		*dom='\0';
+
 	
 }
+
 int insertURL(void){
 	static char tmp[MAXURLSIZE];	 
 	char *offset;
@@ -186,9 +214,12 @@ int insertURL(void){
 		currentURL[strlen(currentURL)-1]='\0'; // remove final '/'
 	if(strstr(currentURL, "://")==NULL) // ignore badly formed urls
 		return 0;	
-	GetTLD(currentTLD, currentURL);
+	SplitURL(currentPro, currentSub, currentDom, currentTLD, currentPath, currentURL);
 	exec sql BEGIN WORK;
-	exec sql INSERT INTO node (url, checked, tld) VALUES (:currentURL, NULL, :currentTLD) RETURNING id INTO :toID; 
+	exec sql INSERT INTO domain (protocol, subdomains, domain, tld) VALUES (:currentPro, :currentSub, :currentDom, :currentTLD) RETURNING id INTO :domainID; 
+	exec sql COMMIT WORK;
+	exec sql BEGIN WORK;
+	exec sql INSERT INTO node (url, checked, domainid, urlpath) VALUES (:currentURL, NULL, :domainID, :currentPath) RETURNING id INTO :toID; 
 	checkErrorCode();
 	exec sql COMMIT WORK;
 	exec sql BEGIN WORK;
@@ -303,15 +334,15 @@ int main(void) {
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
-//	exec sql connect to :target USER :user USING :password;
+	exec sql connect to :target USER :user USING :password;
 // 	if no details are needed, simply do :
-	exec sql connect to 'unix:postgresql:locahost' ;
+// exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
-	exec sql SET CLIENT_ENCODING TO 'LATIN1'; 
+//	exec sql SET CLIENT_ENCODING TO 'LATIN1'; 
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY length(url) ASC LIMIT 2000 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY length(url) ASC LIMIT 20 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
