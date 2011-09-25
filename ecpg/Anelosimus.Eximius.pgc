@@ -77,6 +77,9 @@ exec sql begin declare section;
 	char currentURL[MAXURLSIZE];
 	char url_chunk[MAXCO][MAXURLSIZE];
 	short int url_todo[MAXCO];
+	char LinkRightContext[MAXURLSIZE];
+	char LinkMidContext[MAXURLSIZE];
+	char LinkLeftContext[MAXURLSIZE];
 	char currentPro[MAXURLSIZE];
 	char currentSub[MAXURLSIZE];
 	char currentDom[MAXURLSIZE];
@@ -93,7 +96,7 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost"; // Data for connection if needed
 const char *user = "pierrot";
-const char *password = "******";
+const char *password = "***";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -145,6 +148,16 @@ int getNextURL(bool reinit, int idx){
 			if((end-start) <MAXURLSIZE){
 				memcpy(currentURL, start, (size_t) (end-start));
 				*(currentURL+(size_t) (end-start))='\0';
+				start=strstr(start, ">");
+				if(start!=NULL)
+					end=strstr(start, "<");
+				if(start==NULL||end==NULL)
+					*LinkMidContext='\0';
+				else{
+					memcpy(LinkMidContext, start+1, (size_t) (end-start)-1);
+					*(LinkMidContext+(size_t) (end-start))='\0';
+					printf("Mid : {%s}\n",LinkMidContext); 
+				}
 			}
 			else
 				end=NULL;
@@ -157,7 +170,7 @@ int getNextURL(bool reinit, int idx){
 void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* url)
 {
 	char  *tmp, *start;
-	printf("split[%s]\n", url);
+
 	while(*url!='\0' && *url !=':') { // end of the protocol's field
 		*prot++=*url++;
 	}	
@@ -213,6 +226,8 @@ int insertURL(void){
 	if(currentURL[strlen(currentURL)-1]=='/')
 		currentURL[strlen(currentURL)-1]='\0'; // remove final '/'
 	if(strstr(currentURL, "://")==NULL) // ignore badly formed urls
+		return 0;
+	if(strncmp(currentURL, "javascript:", 11)==0) // ignore javascript stuff
 		return 0;	
 	SplitURL(currentPro, currentSub, currentDom, currentTLD, currentPath, currentURL);
 	exec sql BEGIN WORK;
@@ -223,7 +238,7 @@ int insertURL(void){
 	checkErrorCode();
 	exec sql COMMIT WORK;
 	exec sql BEGIN WORK;
-        exec sql INSERT INTO links ("from", "to") VALUES (:currentID , :toID) ; 
+        exec sql INSERT INTO links ("from", "to", "midcontext") VALUES (:currentID , :toID, :LinkMidContext) ; 
 	checkErrorCode();
         exec sql COMMIT WORK;
 }
