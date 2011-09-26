@@ -59,9 +59,9 @@
 #include <sys/types.h> 
 #include <signal.h>
 
-#define MAXURLSIZE	(100*1024) /* 100 Kb */
-#define MAXCO		200	// Max parrallel connections
-#define MAXTLD		255	// Max number of chars in top level domain
+#define MAXURLSIZE		(100*1024) /* 100 Kb */
+#define MAXCO			51	// Max parrallel connections
+#define MAXSMALLSTRING		255	// Max number of chars in top level domain
 
 exec sql include sqlca;
 exec sql begin declare section;
@@ -76,6 +76,7 @@ exec sql begin declare section;
 	struct MemoryStruct currentBody[MAXCO];
 	char currentURL[MAXURLSIZE];
 	char url_chunk[MAXCO][MAXURLSIZE];
+	char urlenc[MAXCO][MAXSMALLSTRING];
 	short int url_todo[MAXCO];
 	char LinkRightContext[MAXURLSIZE];
 	char LinkMidContext[MAXURLSIZE];
@@ -87,6 +88,7 @@ exec sql begin declare section;
 	char currentPath[MAXURLSIZE];
 	char currentRoot[MAXURLSIZE];
 	char currentRootURL[MAXURLSIZE];
+	char currentEncoding[MAXSMALLSTRING];
 	unsigned long int currentID;
 	unsigned long int toID;
 	unsigned long int domainID;
@@ -96,7 +98,7 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost"; // Data for connection if needed
 const char *user = "jourlin";
-const char *password = "***";
+const char *password = "****";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -156,7 +158,7 @@ int getNextURL(bool reinit, int idx){
 				else{
 					memcpy(LinkMidContext, start+1, (size_t) (end-start)-1);
 					*(LinkMidContext+(size_t) (end-start))='\0';
-					printf("Mid : {%s}\n",LinkMidContext); 
+					//printf("Mid : {%s}\n",LinkMidContext); 
 				}
 			}
 			else
@@ -230,7 +232,9 @@ int insertURL(void){
 	if(strncmp(currentURL, "javascript:", 11)==0) // ignore javascript stuff
 		return 0;	
 	SplitURL(currentPro, currentSub, currentDom, currentTLD, currentPath, currentURL);
+	//printf("Insert %s with %s\n", currentURL, currentEncoding);
 	exec sql BEGIN WORK;
+	exec sql SET CLIENT_ENCODING TO :currentEncoding;
 	exec sql INSERT INTO domain (protocol, subdomains, domain, tld) VALUES (:currentPro, :currentSub, :currentDom, :currentTLD) RETURNING id INTO :domainID; 
 	if(strcmp(currentTLD,"fr")==0)
 		score=1.0;
@@ -361,7 +365,7 @@ int main(void) {
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY score ASC, length(urlpath) ASC LIMIT 20 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY score DESC, length(urlpath) ASC LIMIT 20 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
@@ -369,6 +373,7 @@ int main(void) {
 		EXEC SQL WHENEVER NOT FOUND DO BREAK;
 		checkErrorCode();
 		EXEC SQL OPEN url_cursor;
+
 		checkErrorCode();
 		nburls=0;
 		while(1){
@@ -381,7 +386,7 @@ int main(void) {
 	                if(sqlca.sqlcode!=0)
 	                        return;
 			strcpy(url_chunk[nburls], currentRootURL);
-			printf("[%d] is processing %s\n", pid, url_chunk[nburls]);
+			//printf("[%d] is processing %s\n", pid, url_chunk[nburls]);
 			nburls++;
 		}
 		EXEC SQL CLOSE url_cursor;
@@ -439,8 +444,11 @@ int main(void) {
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_CONTENT_TYPE, &ct);
 					if(ct && (strstr(ct, "text/html")!=NULL || strstr(ct, "text/xml")!=NULL)){
 						strcpy(url_chunk[nburls], eurl);
+						if(strstr(ct, "ISO-8859-1")!=NULL || strstr(ct, "iso-8859-1")!=NULL)
+							strcpy(urlenc[nburls],"LATIN1");
+						else
+							strcpy(urlenc[nburls],"UTF8");
 					}
-
 					curl_multi_remove_handle(cm, e);
 					curl_easy_cleanup(e);
 				}
@@ -513,13 +521,15 @@ int main(void) {
 				}
 			}
 		}
-		
 		for (C = 0; C < nburls; ++C) {
 			getNextURL(TRUE, C);
 			strcpy(currentRootURL, url_chunk[C]);
+			strcpy(currentEncoding, urlenc[C]);
+			printf("Processing [%s]...\n", currentRootURL);
   	 		while(getNextURL(FALSE, C)){
 				insertURL();
 			}
+			printf("Done.\n");
 			if(currentBody[C].size > MaxPageSize){
 				MaxPageSize=currentBody[C].size;
 				fprintf(stderr, "*** New maximum page size %ld\n", MaxPageSize);
