@@ -16,7 +16,7 @@ CREATE TABLE node (
     url text NOT NULL UNIQUE,
     effectiveurl text,
     checked timestamp with time zone,
-    score double,
+    score double precision,
     domainid bigint NOT NULL REFERENCES domain(id) ON UPDATE CASCADE ON DELETE CASCADE,
     urlpath text,
     content text
