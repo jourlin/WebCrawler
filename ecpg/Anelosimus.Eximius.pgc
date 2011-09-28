@@ -136,7 +136,7 @@ size_t curl_write( void *ptr, size_t size, size_t nmemb, void *userdata)
 int getNextURL(bool reinit, int idx){
 	static const char *tag="href=\"";
 	static char *start;
-	printf("Inside GetNextURL\n");
+	*LinkMidContext='\0';
 
 	if(reinit){
 		start=currentBody[idx].memory;
@@ -144,6 +144,7 @@ int getNextURL(bool reinit, int idx){
 	}
 	char *end=start;
 	start=strstr(start, tag);
+	
 	if(start!=NULL){
 		start+=strlen(tag);
 		end=strstr(start, "\"");
@@ -152,9 +153,11 @@ int getNextURL(bool reinit, int idx){
 				memcpy(currentURL, start, (size_t) (end-start));
 				*(currentURL+(size_t) (end-start))='\0';
 				start=strstr(start, ">");
-				if(start!=NULL)
+				if(start!=NULL&& *(start-1)!='/')
 					end=strstr(start, "<");
-				if(start==NULL||end==NULL||(end-start)>MAXURLSIZE||end==(start+1))
+				else
+					end=start+1;
+				if(start==NULL||end==NULL||(end-start)>=MAXURLSIZE||end==(start+1))
 					*LinkMidContext='\0';
 				else{
 					memcpy(LinkMidContext, start+1, (size_t) (end-start)-1);
@@ -167,14 +170,12 @@ int getNextURL(bool reinit, int idx){
 		}
 		start=end;
 	}
-	printf("Outside GetNextURL\n");
 	return (start!=NULL);
 }
 
 void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* url)
 {
 	char  *tmp, *start;
-	printf("Inside SplitURL\n");
 
 	while(*url!='\0' && *url !=':') { // end of the protocol's field
 		*prot++=*url++;
@@ -215,9 +216,6 @@ void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* 
 	while(*tmp!='\0')
 		*dom++=*tmp++; // copy domain
 		*dom='\0';
-	printf("Outside SplitURL\n");
-
-	
 }
 
 int insertURL(void){
