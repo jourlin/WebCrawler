@@ -136,6 +136,7 @@ size_t curl_write( void *ptr, size_t size, size_t nmemb, void *userdata)
 int getNextURL(bool reinit, int idx){
 	static const char *tag="href=\"";
 	static char *start;
+	printf("Inside GetNextURL\n");
 
 	if(reinit){
 		start=currentBody[idx].memory;
@@ -157,7 +158,7 @@ int getNextURL(bool reinit, int idx){
 					*LinkMidContext='\0';
 				else{
 					memcpy(LinkMidContext, start+1, (size_t) (end-start)-1);
-					*(LinkMidContext+(size_t) (end-start))='\0';
+					*(LinkMidContext+(size_t) (end-start)-1)='\0';
 					//printf("Mid : {%s}\n",LinkMidContext); 
 				}
 			}
@@ -166,12 +167,14 @@ int getNextURL(bool reinit, int idx){
 		}
 		start=end;
 	}
+	printf("Outside GetNextURL\n");
 	return (start!=NULL);
 }
 
 void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* url)
 {
 	char  *tmp, *start;
+	printf("Inside SplitURL\n");
 
 	while(*url!='\0' && *url !=':') { // end of the protocol's field
 		*prot++=*url++;
@@ -212,6 +215,7 @@ void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* 
 	while(*tmp!='\0')
 		*dom++=*tmp++; // copy domain
 		*dom='\0';
+	printf("Outside SplitURL\n");
 
 	
 }
@@ -242,11 +246,13 @@ int insertURL(void){
 		score=0.0;
 	exec sql COMMIT WORK;
 	exec sql BEGIN WORK;
+	exec sql SET CLIENT_ENCODING TO :currentEncoding;
 	exec sql INSERT INTO node (url, checked, domainid, urlpath, score) VALUES (:currentURL, NULL, :domainID, :currentPath, :score) RETURNING id INTO :toID; 
 	checkErrorCode();
 	exec sql COMMIT WORK;
 	exec sql BEGIN WORK;
-        exec sql INSERT INTO links ("from", "to", "midcontext") VALUES (:currentID , :toID, :LinkMidContext) ; 
+        exec sql SET CLIENT_ENCODING TO :currentEncoding;
+	exec sql INSERT INTO links ("from", "to", "midcontext") VALUES (:currentID , :toID, :LinkMidContext) ; 
 	checkErrorCode();
         exec sql COMMIT WORK;
 }
@@ -357,9 +363,9 @@ int main(void) {
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
-	exec sql connect to :target USER :user USING :password;
+//	exec sql connect to :target USER :user USING :password;
 // 	if no details are needed, simply do :
-// exec sql connect to 'unix:postgresql:locahost' ;
+	exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
 //	exec sql SET CLIENT_ENCODING TO 'UTF8'; 
 	while(1){
