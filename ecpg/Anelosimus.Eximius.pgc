@@ -60,7 +60,7 @@
 #include <signal.h>
 
 #define MAXURLSIZE		(100*1024) /* 100 Kb */
-#define MAXCO			51	// Max parrallel connections
+#define MAXCO			20	// Max parrallel connections
 #define MAXSMALLSTRING		255	// Max number of chars in top level domain
 
 exec sql include sqlca;
@@ -152,6 +152,7 @@ int getNextURL(bool reinit, int idx){
 			if((end-start) <MAXURLSIZE){
 				memcpy(currentURL, start, (size_t) (end-start));
 				*(currentURL+(size_t) (end-start))='\0';
+				//printf("Current URL: %s\n", currentURL);
 				start=strstr(start, ">");
 				if(start!=NULL&& *(start-1)!='/')
 					end=strstr(start, "<");
@@ -162,8 +163,9 @@ int getNextURL(bool reinit, int idx){
 				else{
 					memcpy(LinkMidContext, start+1, (size_t) (end-start)-1);
 					*(LinkMidContext+(size_t) (end-start)-1)='\0';
-					//printf("Mid : {%s}\n",LinkMidContext); 
+					printf("Mid : {%s}\n",LinkMidContext); 
 				}
+		
 			}
 			else
 				end=NULL;
@@ -173,14 +175,16 @@ int getNextURL(bool reinit, int idx){
 	return (start!=NULL);
 }
 
-void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* url)
+int SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* url)
 {
-	char  *tmp, *start;
-
+	char  *tmp, *start, *s=subdom;
+	//printf("About to split %s\n", url);
 	while(*url!='\0' && *url !=':') { // end of the protocol's field
 		*prot++=*url++;
 	}	
 	*prot='\0';
+	if(*url=='\0')
+		return 0;
 	url++;
 	while(*url=='/')
 		url++;
@@ -193,8 +197,10 @@ void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* 
 	*subdom='\0';
 	// GET TLD
 	tmp=subdom-1;
-	while(*tmp!='.' && *tmp!='/')
+	while(tmp>=s && *tmp!='.' && *tmp!='/')
 		tmp--; // find the 1st char of TLD; 
+	if(tmp<s)
+		return 0;
 	*tmp='\0';
 	subdom=tmp; // on the dot before the TLD
 	tmp++;
@@ -203,8 +209,10 @@ void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* 
 	*tld='\0';
 	// GET Domain
 	tmp=subdom-1; // the last char of domain
-	while(tmp!=start && *tmp!='.')
+	while(tmp>=s && tmp!=start && *tmp!='.')
 		tmp--; // find the 1st char of Dom; 
+	if(tmp<s)
+                return 0;
 	if(tmp!=start){
 		*tmp='\0';
 		tmp++;
@@ -216,12 +224,14 @@ void SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* 
 	while(*tmp!='\0')
 		*dom++=*tmp++; // copy domain
 		*dom='\0';
+	//printf("Splitting done.\n");
+	return 1;
 }
 
 int insertURL(void){
 	static char tmp[MAXURLSIZE];	 
 	char *offset;
-
+	printf("Inserts from %s ", currentRootURL);
 	if(currentURL[0]=='/'){				// deals with relative paths
 		strcpy(tmp, currentURL);
 		strcpy(currentURL, currentRoot);
@@ -229,12 +239,16 @@ int insertURL(void){
 	};	
 	if(currentURL[strlen(currentURL)-1]=='/')
 		currentURL[strlen(currentURL)-1]='\0'; // remove final '/'
+	printf("/ %s root:%s\n", currentURL, currentRoot);
 	if(strstr(currentURL, "://")==NULL) // ignore badly formed urls
 		return 0;
 	if(strncmp(currentURL, "javascript:", 11)==0) // ignore javascript stuff
 		return 0;	
-	SplitURL(currentPro, currentSub, currentDom, currentTLD, currentPath, currentURL);
-	//printf("Insert %s with %s\n", currentURL, currentEncoding);
+	if(!SplitURL(currentPro, currentSub, currentDom, currentTLD, currentPath, currentURL)){
+		printf("URL %s is malformed\n", currentURL);
+		return; // Ignore badly formed url
+	}
+	//printf("Insert %s://%s.%s.%s/%s, with %s\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
 	exec sql BEGIN WORK;
 	exec sql SET CLIENT_ENCODING TO :currentEncoding;
 	exec sql INSERT INTO domain (protocol, subdomains, domain, tld) VALUES (:currentPro, :currentSub, :currentDom, :currentTLD) RETURNING id INTO :domainID; 
@@ -464,6 +478,7 @@ int main(void) {
 		}
 		for (C = 0; C < nburls; ++C) 
 			if(currentBody[C].memory){
+				//printf("Free1 %d\n", C);
 				free(currentBody[C].memory);
 			}
 
@@ -528,6 +543,8 @@ int main(void) {
 		for (C = 0; C < nburls; ++C) {
 			getNextURL(TRUE, C);
 			strcpy(currentRootURL, url_chunk[C]);
+			strcpy(currentRoot, currentRootURL);
+			getDirFromURL(currentRoot);
 			strcpy(currentEncoding, urlenc[C]);
 			printf("Processing [%s]...\n", currentRootURL);
   	 		while(getNextURL(FALSE, C)){
@@ -546,8 +563,10 @@ int main(void) {
 			drop_blanks(currentBody[C].memory);
 			exec sql UPDATE node SET content=:currentBody[C].memory WHERE url=:url_chunk[C];
 			//printf("Content of %s:\n [%s]\n", url_chunk[C], currentBody[C].memory);
-			if(currentBody[C].memory)
+			if(currentBody[C].memory){
+				//printf("Free2 :%d\n", C);
 				free(currentBody[C].memory);
+			}
   		}
 		curl_multi_cleanup(cm);
 		curl_global_cleanup();
