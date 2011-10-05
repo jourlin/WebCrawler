@@ -97,8 +97,8 @@ exec sql begin declare section;
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost"; // Data for connection if needed
-const char *user = "jourlin";
-const char *password = "****";
+const char *user = "pierrot";
+const char *password = "*****";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -143,6 +143,8 @@ int getNextURL(bool reinit, int idx){
 		return TRUE;
 	}
 	char *end=start;
+	char *startmid, *endmid;
+
 	start=strstr(start, tag);
 	
 	if(start!=NULL){
@@ -153,16 +155,16 @@ int getNextURL(bool reinit, int idx){
 				memcpy(currentURL, start, (size_t) (end-start));
 				*(currentURL+(size_t) (end-start))='\0';
 				//printf("Current URL: %s\n", currentURL);
-				start=strstr(start, ">");
-				if(start!=NULL&& *(start-1)!='/')
-					end=strstr(start, "<");
+				startmid=strstr(start, ">");
+				if((startmid!=NULL) && (*(startmid-1)!='/'))
+					endmid=strstr(startmid, "<");
 				else
-					end=start+1;
-				if(start==NULL||end==NULL||(end-start)>=MAXURLSIZE||end==(start+1))
+					endmid=startmid+1;
+				if(startmid==NULL||endmid==NULL||(endmid-startmid)>=MAXURLSIZE||endmid==(startmid+1))
 					*LinkMidContext='\0';
 				else{
-					memcpy(LinkMidContext, start+1, (size_t) (end-start)-1);
-					*(LinkMidContext+(size_t) (end-start)-1)='\0';
+					memcpy(LinkMidContext, startmid+1, (size_t) (endmid-startmid)-1);
+					*(LinkMidContext+(size_t) (endmid-startmid)-1)='\0';
 					printf("Mid : {%s}\n",LinkMidContext); 
 				}
 		
@@ -246,8 +248,14 @@ int insertURL(void){
 		return 0;	
 	if(!SplitURL(currentPro, currentSub, currentDom, currentTLD, currentPath, currentURL)){
 		printf("URL %s is malformed\n", currentURL);
-		return; // Ignore badly formed url
-	}
+		return 0; // Ignore badly formed url
+	}/*
+	strcpy(currentPro,"http");
+	strcpy(currentSub,"www");
+	strcpy(currentDom,"jourlin");
+	strcpy(currentTLD,"com");
+	strcpy(currentPath,"/index.php");
+	*/
 	//printf("Insert %s://%s.%s.%s/%s, with %s\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
 	exec sql BEGIN WORK;
 	exec sql SET CLIENT_ENCODING TO :currentEncoding;
@@ -375,9 +383,9 @@ int main(void) {
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
-//	exec sql connect to :target USER :user USING :password;
+	exec sql connect to :target USER :user USING :password;
 // 	if no details are needed, simply do :
-	exec sql connect to 'unix:postgresql:locahost' ;
+//	exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
 //	exec sql SET CLIENT_ENCODING TO 'UTF8'; 
 	while(1){
