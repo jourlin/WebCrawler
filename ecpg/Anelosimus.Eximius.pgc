@@ -165,7 +165,7 @@ int getNextURL(bool reinit, int idx){
 				else{
 					memcpy(LinkMidContext, startmid+1, (size_t) (endmid-startmid)-1);
 					*(LinkMidContext+(size_t) (endmid-startmid)-1)='\0';
-					printf("Mid : {%s}\n",LinkMidContext); 
+					//printf("Mid : {%s}\n",LinkMidContext); 
 				}
 		
 			}
@@ -233,7 +233,7 @@ int SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* u
 int insertURL(void){
 	static char tmp[MAXURLSIZE];	 
 	char *offset;
-	printf("Inserts from %s ", currentRootURL);
+	//printf("Inserts from %s ", currentRootURL);
 	if(currentURL[0]=='/'){				// deals with relative paths
 		strcpy(tmp, currentURL);
 		strcpy(currentURL, currentRoot);
@@ -241,7 +241,7 @@ int insertURL(void){
 	};	
 	if(currentURL[strlen(currentURL)-1]=='/')
 		currentURL[strlen(currentURL)-1]='\0'; // remove final '/'
-	printf("/ %s root:%s\n", currentURL, currentRoot);
+	//printf("/ %s root:%s\n", currentURL, currentRoot);
 	if(strstr(currentURL, "://")==NULL) // ignore badly formed urls
 		return 0;
 	if(strncmp(currentURL, "javascript:", 11)==0) // ignore javascript stuff
@@ -383,9 +383,9 @@ int main(void) {
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
-	exec sql connect to :target USER :user USING :password;
+//	exec sql connect to :target USER :user USING :password;
 // 	if no details are needed, simply do :
-//	exec sql connect to 'unix:postgresql:locahost' ;
+	exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
 //	exec sql SET CLIENT_ENCODING TO 'UTF8'; 
 	while(1){
@@ -558,7 +558,7 @@ int main(void) {
   	 		while(getNextURL(FALSE, C)){
 				insertURL();
 			}
-			printf("Done.\n");
+			//printf("Done.\n");
 			if(currentBody[C].size > MaxPageSize){
 				MaxPageSize=currentBody[C].size;
 				fprintf(stderr, "*** New maximum page size %ld\n", MaxPageSize);

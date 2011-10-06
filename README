@@ -20,24 +20,24 @@ you will also need the following packages : libecpg-dev, libcurl3-dev
 commands its contains on your database.
 e.g. : psql -Umyrole -dmybase -W -f "sql/CreateTables.sql"
 2. edit ecpg/Anelosimus.Eximius.pgc and include your database 
-details in the source (lines 88-90 and 305-308)
+details in the source (lines 99-101 and 386-388)
 3. mkdir bin
 3. make bin/Anelosimus.Eximius
 4. insert a few starting urls in the table "node". 
 Except "url" and "tld", all values should be set to NULL.
 5. bin/Anelosimus.Eximius & 
-6. the above will start a process that crawls a maximum of 10000 urls in parrallel. 
+6. the above will start a process that crawls a maximum of 20 urls in parrallel. If another max is needed, change the value of MAXCO at line 63 and the value after "LIMIT" at line 394... 
 You can start any number of processes on any number of machines. 
 7. the crawl strategy is described as a simple SQL query that fetch 
 the urls to be crawled. e.g. : 
-Anelosimus.Eximius.pgc, line 314 : 
-exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE tld='fr' 
-AND checked IS NULL ORDER BY length(url) ASC LIMIT 10000 FOR UPDATE ;";
-(here the process fetches the 10000 shortest url that were not yet visited 
-from the ".fr" top level domain). If you need to change this strategy, 
-simply edit this line and go to step 3.
-
+Anelosimus.Eximius.pgc, line 394 : 
+exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY score DESC, length(urlpath) ASC LIMIT 20 FOR UPDATE ;";
+(here the process fetches the 20 highest scored URL with shortest urlpath that were not yet visited (score is 1.0 for ".fr" top level domains and 0 for others).If you need to change this strategy, simply edit this line and go to step 3.
+The score is calculated in insertURL() at lines 263-266.
 
 *** note *** Updating the sources on github : 
 - git commit -a
 - git push -u origin master
+***** Uptadng from github :
+- git pull -u origin master
+
