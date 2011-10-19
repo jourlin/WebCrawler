@@ -60,7 +60,7 @@
 #include <signal.h>
 
 #define MAXURLSIZE		(100*1024) /* 100 Kb */
-#define MAXCO			20	// Max parrallel connections
+#define MAXCO			200	// Max parrallel connections
 #define MAXSMALLSTRING		255	// Max number of chars in top level domain
 
 exec sql include sqlca;
@@ -97,8 +97,8 @@ exec sql begin declare section;
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost"; // Data for connection if needed
-const char *user = "pierrot";
-const char *password = "*****";
+const char *user = "hypolite";
+const char *password = "Hlaeem3f?";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -249,32 +249,28 @@ int insertURL(void){
 	if(!SplitURL(currentPro, currentSub, currentDom, currentTLD, currentPath, currentURL)){
 		printf("URL %s is malformed\n", currentURL);
 		return 0; // Ignore badly formed url
-	}/*
-	strcpy(currentPro,"http");
-	strcpy(currentSub,"www");
-	strcpy(currentDom,"jourlin");
-	strcpy(currentTLD,"com");
-	strcpy(currentPath,"/index.php");
-	*/
+	}
 	//printf("Insert %s://%s.%s.%s/%s, with %s\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
 	exec sql BEGIN WORK;
 	exec sql SET CLIENT_ENCODING TO :currentEncoding;
 	exec sql INSERT INTO domain (protocol, subdomains, domain, tld) VALUES (:currentPro, :currentSub, :currentDom, :currentTLD) RETURNING id INTO :domainID; 
-	if(strcmp(currentTLD,"fr")==0)
-		score=1.0;
-	else 
-		score=0.0;
+
 	exec sql COMMIT WORK;
 	exec sql BEGIN WORK;
-	exec sql SET CLIENT_ENCODING TO :currentEncoding;
-	exec sql INSERT INTO node (url, checked, domainid, urlpath, score) VALUES (:currentURL, NULL, :domainID, :currentPath, :score) RETURNING id INTO :toID; 
+	exec sql INSERT INTO node (url, checked, domainid, urlpath) VALUES (:currentURL, NULL, :domainID, :currentPath) RETURNING id INTO :toID; 
 	checkErrorCode();
 	exec sql COMMIT WORK;
+
 	exec sql BEGIN WORK;
-        exec sql SET CLIENT_ENCODING TO :currentEncoding;
 	exec sql INSERT INTO links ("from", "to", "midcontext") VALUES (:currentID , :toID, :LinkMidContext) ; 
 	checkErrorCode();
         exec sql COMMIT WORK;
+
+	exec sql BEGIN WORK;
+	exec sql UPDATE node SET score=ScoreURL(:toID) WHERE id=:toID; 
+	checkErrorCode();
+	exec sql COMMIT WORK;
+
 }
 
 void getDirFromURL(char *url){
@@ -383,15 +379,15 @@ int main(void) {
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
-//	exec sql connect to :target USER :user USING :password;
+	exec sql connect to :target USER :user USING :password;
 // 	if no details are needed, simply do :
-	exec sql connect to 'unix:postgresql:locahost' ;
+//	exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
 //	exec sql SET CLIENT_ENCODING TO 'UTF8'; 
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY score DESC, length(urlpath) ASC LIMIT 20 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY score DESC, length(urlpath) ASC LIMIT 200 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
