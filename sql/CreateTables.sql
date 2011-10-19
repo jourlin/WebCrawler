@@ -45,6 +45,9 @@ tmp bigint;
 
 BEGIN
 select count(*) INTO tmp FROM links where (
+substring(lower(midcontext), 'presidentielle') is not NULL OR 
+substring(lower(midcontext), 'politique') is not NULL OR 
+substring(lower(midcontext), 'election') is not NULL OR 
 substring(lower(midcontext), 'primaires') is not NULL OR 
 substring(lower(midcontext), 'socialistes') is not NULL OR
 substring(lower(midcontext), 'hollande') is not NULL OR
@@ -55,7 +58,10 @@ substring(lower(midcontext), 'montebourg') is not NULL OR
 substring(lower(midcontext), 'bailey') is not NULL) AND
 "to"=id;
 score:=tmp;
-select (CASE WHEN (substring(lower("url"), 'primaires') IS NULL) THEN 0 ELSE 1 END)+
+select (CASE WHEN (substring(lower("url"), 'presidentielle') IS NULL) THEN 0 ELSE 1 END)+
+(CASE WHEN (substring(lower("url"), 'politique') IS NULL) THEN 0 ELSE 1 END)+
+(CASE WHEN (substring(lower("url"), 'election') IS NULL) THEN 0 ELSE 1 END)+
+(CASE WHEN (substring(lower("url"), 'primaires') IS NULL) THEN 0 ELSE 1 END)+
 (CASE WHEN (substring(lower("url"), 'socialistes') IS NULL) THEN 0 ELSE 1 END)+
 (CASE WHEN (substring(lower("url"), 'hollande') IS NULL) THEN 0 ELSE 1 END)+
 (CASE WHEN (substring(lower("url"), 'aubry') IS NULL) THEN 0 ELSE 1 END)+
