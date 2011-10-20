@@ -92,6 +92,7 @@ exec sql begin declare section;
 	unsigned long int currentID;
 	unsigned long int toID;
 	unsigned long int domainID;
+	int indicator;
 	double score;	
 	char currentEffectiveRootURL[MAXURLSIZE];
 exec sql end declare section;
@@ -253,8 +254,18 @@ int insertURL(void){
 	//printf("Insert %s://%s.%s.%s/%s, with %s\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
 	exec sql BEGIN WORK;
 	exec sql SET CLIENT_ENCODING TO :currentEncoding;
-	exec sql INSERT INTO domain (protocol, subdomains, domain, tld) VALUES (:currentPro, :currentSub, :currentDom, :currentTLD) RETURNING id INTO :domainID; 
-
+	exec sql SELECT id INTO :domainID :indicator FROM domain WHERE protocol=:currentPro AND subdomains=:currentSub AND domain=:currentDom AND tld=:currentTLD;
+	if(sqlca.sqlcode!=0)
+		indicator=-1;
+	exec sql COMMIT WORK;
+	// printf("%s://%s.%s.%s DomId:%ld, indicator:%d\n",currentPro, currentSub, currentDom, currentTLD, domainID, indicator);
+	if(indicator!=0){
+		exec sql BEGIN WORK;
+		exec sql INSERT INTO domain (protocol, subdomains, domain, tld) VALUES (:currentPro, :currentSub, :currentDom, :currentTLD) RETURNING id INTO :domainID; 
+		checkErrorCode();
+		exec sql COMMIT WORK;
+	}
+	
 	exec sql COMMIT WORK;
 	exec sql BEGIN WORK;
 	exec sql INSERT INTO node (url, checked, domainid, urlpath) VALUES (:currentURL, NULL, :domainID, :currentPath) RETURNING id INTO :toID; 
@@ -387,7 +398,7 @@ int main(void) {
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url, id FROM node WHERE checked IS NULL ORDER BY score DESC, length(urlpath) DESC LIMIT 200 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url||urlpath as url, id FROM node WHERE checked IS NULL ORDER BY score DESC LIMIT 200 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
@@ -400,15 +411,15 @@ int main(void) {
 		nburls=0;
 		while(1){
 			EXEC SQL FETCH NEXT FROM url_cursor INTO :currentRootURL, :currentID;
+			//printf("[%d] is processing %s\n", pid, currentRootURL );
 			checkErrorCode();
 			if(sqlca.sqlcode!=0)
 				return;
-			exec sql UPDATE node SET checked=now() WHERE url=:currentRootURL;
+			exec sql UPDATE node SET checked=now() WHERE id=:currentID;
 	                checkErrorCode();
 	                if(sqlca.sqlcode!=0)
 	                        return;
 			strcpy(url_chunk[nburls], currentRootURL);
-			//printf("[%d] is processing %s\n", pid, url_chunk[nburls]);
 			nburls++;
 		}
 		EXEC SQL CLOSE url_cursor;
