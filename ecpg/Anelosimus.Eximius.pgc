@@ -76,6 +76,7 @@ exec sql begin declare section;
 	struct MemoryStruct currentBody[MAXCO];
 	char currentURL[MAXURLSIZE];
 	char url_chunk[MAXCO][MAXURLSIZE];
+	unsigned long int url_id[MAXCO];
 	char urlenc[MAXCO][MAXSMALLSTRING];
 	short int url_todo[MAXCO];
 	char LinkRightContext[MAXURLSIZE];
@@ -88,6 +89,7 @@ exec sql begin declare section;
 	char currentPath[MAXURLSIZE];
 	char currentRoot[MAXURLSIZE];
 	char currentRootURL[MAXURLSIZE];
+	char currentEffectiveURL[MAXURLSIZE];
 	char currentEncoding[MAXSMALLSTRING];
 	unsigned long int currentID;
 	unsigned long int toID;
@@ -97,9 +99,9 @@ exec sql begin declare section;
 	char currentEffectiveRootURL[MAXURLSIZE];
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
-const char *target = "webcrawler@localhost"; // Data for connection if needed
-const char *user = "hypolite";
-const char *password ="****";
+const char *target = "primsoc@localhost"; // Data for connection if needed
+const char *user = "francony";
+const char *password ="*******";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -420,6 +422,7 @@ int main(void) {
 	                if(sqlca.sqlcode!=0)
 	                        return;
 			strcpy(url_chunk[nburls], currentRootURL);
+			url_id[nburls]=currentID;
 			nburls++;
 		}
 		EXEC SQL CLOSE url_cursor;
@@ -477,6 +480,9 @@ int main(void) {
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_CONTENT_TYPE, &ct);
 					if(ct && (strstr(ct, "text/html")!=NULL || strstr(ct, "text/xml")!=NULL)){
 						strcpy(url_chunk[nburls], eurl);
+						strcpy(currentEffectiveURL, eurl);
+						currentID=url_id[nburls];
+						exec sql UPDATE node SET effectiveurl=:currentEffectiveURL WHERE id=:currentID;
 						if(strstr(ct, "ISO-8859-1")!=NULL || strstr(ct, "iso-8859-1")!=NULL)
 							strcpy(urlenc[nburls],"LATIN1");
 						else
