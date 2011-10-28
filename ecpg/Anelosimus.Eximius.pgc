@@ -101,7 +101,7 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "primsoc@localhost"; // Data for connection if needed
 const char *user = "francony";
-const char *password ="*******";
+const char *password ="*****";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -253,7 +253,7 @@ int insertURL(void){
 		printf("URL %s is malformed\n", currentURL);
 		return 0; // Ignore badly formed url
 	}
-	printf("Insert %s://%s.%s.%s%s, with %s\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
+	//printf("Insert %s://%s.%s.%s%s, with %s\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
 	exec sql BEGIN WORK;
 	exec sql SET CLIENT_ENCODING TO :currentEncoding;
 	exec sql SELECT id INTO :domainID :indicator FROM domain WHERE protocol=:currentPro AND subdomains=:currentSub AND domain=:currentDom AND tld=:currentTLD;
@@ -305,12 +305,13 @@ static void init(CURLM *cm, int i, unsigned long header)
   
   curl_easy_setopt(eh, CURLOPT_URL, url_chunk[i]);
   curl_easy_setopt(eh, CURLOPT_FOLLOWLOCATION, 1);
+  curl_easy_setopt(eh, CURLOPT_MAXREDIRS, -1);
   curl_easy_setopt(eh, CURLOPT_WRITEFUNCTION, curl_write);
   curl_easy_setopt(eh, CURLOPT_WRITEDATA, (void *) (long int) i);
   curl_easy_setopt(eh, CURLOPT_HEADER, header);
   curl_easy_setopt(eh, CURLOPT_NOBODY, header);
   curl_easy_setopt(eh, CURLOPT_TIMEOUT, 1L); 
-  curl_easy_setopt(eh, CURLOPT_PRIVATE, url_chunk[i]);
+  curl_easy_setopt(eh, CURLOPT_PRIVATE, i);
   curl_easy_setopt(eh, CURLOPT_VERBOSE, 0L);
  
   curl_multi_add_handle(cm, eh);
@@ -475,22 +476,24 @@ int main(void) {
 				if (msg->msg == CURLMSG_DONE) {
 					char *url, *eurl, *ct;
 					CURL *e = msg->easy_handle;
-					curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &url);
+					curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &nburls);
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_EFFECTIVE_URL, &eurl);
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_CONTENT_TYPE, &ct);
 					if(ct && (strstr(ct, "text/html")!=NULL || strstr(ct, "text/xml")!=NULL)){
-						strcpy(url_chunk[nburls], eurl);
 						strcpy(currentEffectiveURL, eurl);
-						currentID=url_id[nburls];
-						exec sql UPDATE node SET effectiveurl=:currentEffectiveURL WHERE id=:currentID;
+						strcpy(currentURL, url_chunk[nburls]);
+						strcpy(url_chunk[nburls], eurl);
+                                                exec sql BEGIN WORK;
+						exec sql UPDATE node SET effectiveurl=:currentEffectiveURL WHERE url=:currentURL;
+						exec SQL END WORK;
 						if(strstr(ct, "ISO-8859-1")!=NULL || strstr(ct, "iso-8859-1")!=NULL)
 							strcpy(urlenc[nburls],"LATIN1");
 						else
 							strcpy(urlenc[nburls],"UTF8");
+						}
+						curl_multi_remove_handle(cm, e);
+						curl_easy_cleanup(e);
 					}
-					curl_multi_remove_handle(cm, e);
-					curl_easy_cleanup(e);
-				}
 				else {
         				fprintf(stderr, "E: CURLMsg (%d)\n", msg->msg);
 				}
