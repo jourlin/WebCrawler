@@ -21,7 +21,8 @@ CREATE TABLE node (
     score double precision,
     domainid bigint NOT NULL REFERENCES domain(id) ON UPDATE CASCADE ON DELETE CASCADE,
     urlpath text,
-    content text
+    content text,
+    UNIQUE(url,urlpath)
 );
 
 DROP TABLE IF EXISTS links CASCADE;
