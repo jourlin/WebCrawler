@@ -313,7 +313,7 @@ static void init(CURLM *cm, int i, unsigned long header)
   curl_easy_setopt(eh, CURLOPT_TIMEOUT, 1L); 
   curl_easy_setopt(eh, CURLOPT_PRIVATE, i);
   curl_easy_setopt(eh, CURLOPT_VERBOSE, 0L);
- 
+  curl_easy_setopt(eh, CURLOPT_DNS_CACHE_TIMEOUT, 48*60*60); // 48h 
   curl_multi_add_handle(cm, eh);
 }
 

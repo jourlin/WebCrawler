@@ -15,7 +15,7 @@ CREATE TABLE domain (
 DROP TABLE IF EXISTS node CASCADE;
 CREATE TABLE node (
     id BIGSERIAL PRIMARY KEY,
-    url text NOT NULL UNIQUE,
+    url text NOT NULL,
     effectiveurl text,
     checked timestamp with time zone,
     score double precision,
