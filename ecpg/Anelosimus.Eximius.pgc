@@ -61,7 +61,7 @@
 
 #define MAXURLSIZE		(100*1024) /* 100 Kb */
 #define MAXCO			20	// Max parrallel connections
-#define MAXSMALLSTRING		255	// Max number of chars in top level domain
+#define MAXSMALLSTRING		512	// Max number of chars in top level domain
 
 exec sql include sqlca;
 exec sql begin declare section;
@@ -77,7 +77,7 @@ exec sql begin declare section;
 	char currentURL[MAXURLSIZE];
 	char url_chunk[MAXCO][MAXURLSIZE];
 	unsigned long int url_id[MAXCO];
-	char urlenc[MAXCO][MAXSMALLSTRING];
+	char url_enc[MAXCO][MAXSMALLSTRING];
 	short int url_todo[MAXCO];
 	char LinkRightContext[MAXURLSIZE];
 	char LinkMidContext[MAXURLSIZE];
@@ -101,7 +101,7 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler2@localhost"; // Data for connection if needed
 const char *user = "hypolite";
-const char *password ="";
+const char *password ="*****";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -253,9 +253,10 @@ int insertURL(void){
 		printf("URL %s is malformed\n", currentURL);
 		return 0; // Ignore badly formed url
 	}
-	//printf("Insert %s://%s.%s.%s%s, with %s\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
+	
 	exec sql BEGIN WORK;
-	exec sql SET CLIENT_ENCODING TO :currentEncoding;
+	//exec sql SET CLIENT_ENCODING TO :currentEncoding;
+	exec sql SET CLIENT_ENCODING TO UTF8;	
 	exec sql SELECT id INTO :domainID :indicator FROM domain WHERE protocol=:currentPro AND subdomains=:currentSub AND domain=:currentDom AND tld=:currentTLD;
 	if(sqlca.sqlcode!=0)
 		indicator=-1;
@@ -267,7 +268,7 @@ int insertURL(void){
 		checkErrorCode();
 		exec sql COMMIT WORK;
 	}
-	
+	//printf("Insert %s://%s.%s.%s%s, CE:[%s]\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
 	exec sql COMMIT WORK;
 	exec sql BEGIN WORK;
 	exec sql INSERT INTO node (url, checked, domainid, urlpath) VALUES (:currentURL, NULL, :domainID, :currentPath) RETURNING id INTO :toID; 
@@ -275,6 +276,7 @@ int insertURL(void){
 	exec sql COMMIT WORK;
 
 	exec sql BEGIN WORK;
+	exec sql SET CLIENT_ENCODING TO :currentEncoding;
 	exec sql INSERT INTO links ("from", "to", "midcontext") VALUES (:currentID , :toID, :LinkMidContext) ; 
 	checkErrorCode();
         exec sql COMMIT WORK;
@@ -401,7 +403,7 @@ int main(void) {
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		exec sql PREPARE get_url FROM "SELECT url||urlpath as url, id FROM node WHERE checked IS NULL ORDER BY score DESC, length(urlpath) ASC LIMIT 20 FOR UPDATE ;";
+		exec sql PREPARE get_url FROM "SELECT url||urlpath as url, id FROM node WHERE checked IS NULL ORDER BY score DESC, length(url||urlpath) ASC LIMIT 20 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
 		checkErrorCode();
@@ -479,21 +481,33 @@ int main(void) {
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &nburls);
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_EFFECTIVE_URL, &eurl);
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_CONTENT_TYPE, &ct);
-					if(ct && (strstr(ct, "text/html")!=NULL || strstr(ct, "text/xml")!=NULL)){
+					
+					if( (ct!=NULL) && 
+							(	(strstr(ct, "text/html")!=NULL) 
+								|| (strstr(ct, "text/xml")!=NULL)
+							)
+						){
+						if(nburls<0 || nburls>=MAXCO){
+							printf("Ooops ! : nburls=%ld\nBye...\n", nburls);
+							exit(-1);
+						}
 						strcpy(currentEffectiveURL, eurl);
 						strcpy(currentURL, url_chunk[nburls]);
 						strcpy(url_chunk[nburls], eurl);
+						if(strstr(ct, "ISO-8859-1")!=NULL || strstr(ct, "iso-8859-1")!=NULL)
+							strcpy(url_enc[nburls],"LATIN1");
+						else{
+							strcpy(url_enc[nburls],"UTF8");
+						};
+						//printf("Warning : %ld[%s] for %s\n", nburls, url_enc[nburls], url_chunk[nburls]);
                                                 exec sql BEGIN WORK;
 						exec sql UPDATE node SET effectiveurl=:currentEffectiveURL WHERE url=:currentURL;
+						checkErrorCode();
 						exec SQL END WORK;
-						if(strstr(ct, "ISO-8859-1")!=NULL || strstr(ct, "iso-8859-1")!=NULL)
-							strcpy(urlenc[nburls],"LATIN1");
-						else
-							strcpy(urlenc[nburls],"UTF8");
-						}
-						curl_multi_remove_handle(cm, e);
-						curl_easy_cleanup(e);
 					}
+					curl_multi_remove_handle(cm, e);
+					curl_easy_cleanup(e);
+				}
 				else {
         				fprintf(stderr, "E: CURLMsg (%d)\n", msg->msg);
 				}
@@ -502,7 +516,6 @@ int main(void) {
 		}
 		for (C = 0; C < nburls; ++C) 
 			if(currentBody[C].memory){
-				//printf("Free1 %d\n", C);
 				free(currentBody[C].memory);
 			}
 
@@ -569,8 +582,8 @@ int main(void) {
 			strcpy(currentRootURL, url_chunk[C]);
 			strcpy(currentRoot, currentRootURL);
 			getDirFromURL(currentRoot);
-			strcpy(currentEncoding, urlenc[C]);
-			printf("Processing [%s]...\n", currentRootURL);
+			strcpy(currentEncoding, url_enc[C]);
+			printf("Processing [%s], %d, encoding [%s]\n", currentRootURL, C, url_enc[C]);
   	 		while(getNextURL(FALSE, C)){
 				insertURL();
 			}
