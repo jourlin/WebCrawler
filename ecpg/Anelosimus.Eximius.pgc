@@ -99,9 +99,9 @@ exec sql begin declare section;
 	char currentEffectiveRootURL[MAXURLSIZE];
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
-const char *target = "primsoc@localhost"; // Data for connection if needed
-const char *user = "francony";
-const char *password ="*****";
+const char *target = "webcrawler2@localhost"; // Data for connection if needed
+const char *user = "hypolite";
+const char *password ="";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
