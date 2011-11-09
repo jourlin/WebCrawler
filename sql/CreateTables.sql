@@ -12,6 +12,12 @@ CREATE TABLE domain (
     UNIQUE(protocol, subdomains, domain, tld)
 );
 
+-- Note : When table "domain" is already filled, the two following queries insert root URLs into table node
+--        This can be useful to start a crawl from previous collected data.
+-- INSERT INTO node (url, score, domainid, urlpath) SELECT protocol||'://'||subdomains||'.'||domain||'.'||tld, 1.0, id, '' FROM domain WHERE subdomains is not NULL AND length(subdomains)!=0;
+-- INSERT INTO node (url, score, domainid, urlpath) SELECT protocol||'://'||domain||'.'||tld, 1.0, id, '' FROM domain WHERE subdomains is NULL OR length(subdomains)=0;
+
+
 DROP TABLE IF EXISTS node CASCADE;
 CREATE TABLE node (
     id BIGSERIAL PRIMARY KEY,
@@ -50,26 +56,14 @@ substring(lower(midcontext), 'presidentielle') is not NULL OR
 substring(lower(midcontext), 'politique') is not NULL OR 
 substring(lower(midcontext), 'election') is not NULL OR 
 substring(lower(midcontext), 'primaires') is not NULL OR 
-substring(lower(midcontext), 'socialistes') is not NULL OR
-substring(lower(midcontext), 'hollande') is not NULL OR
-substring(lower(midcontext), 'aubry') is not NULL OR
-substring(lower(midcontext), 'royal') is not NULL OR
-substring(lower(midcontext), 'vals') is not NULL OR
-substring(lower(midcontext), 'montebourg') is not NULL OR
-substring(lower(midcontext), 'bailet') is not NULL) AND
+substring(lower(midcontext), 'socialistes') is not NULL) AND
 "to"=id;
 score:=tmp;
 select (CASE WHEN (substring(lower("url"), 'presidentielle') IS NULL) THEN 0 ELSE 2 END)+
 (CASE WHEN (substring(lower("url"), 'politique') IS NULL) THEN 0 ELSE 1 END)+
 (CASE WHEN (substring(lower("url"), 'election') IS NULL) THEN 0 ELSE 1 END)+
 (CASE WHEN (substring(lower("url"), 'primaires') IS NULL) THEN 0 ELSE 3 END)+
-(CASE WHEN (substring(lower("url"), 'socialistes') IS NULL) THEN 0 ELSE 3 END)+
-(CASE WHEN (substring(lower("url"), 'hollande') IS NULL) THEN 0 ELSE 1 END)+
-(CASE WHEN (substring(lower("url"), 'aubry') IS NULL) THEN 0 ELSE 4 END)+
-(CASE WHEN (substring(lower("url"), 'royal') IS NULL) THEN 0 ELSE 1 END)+
-(CASE WHEN (substring(lower("url"), 'vals') IS NULL) THEN 0 ELSE 1 END)+
-(CASE WHEN (substring(lower("url"), 'montebourg') IS NULL) THEN 0 ELSE 4 END)+
-(CASE WHEN (substring(lower("url"), 'bailet') IS NULL) THEN 0 ELSE 4 END)
+(CASE WHEN (substring(lower("url"), 'socialistes') IS NULL) THEN 0 ELSE 3 END)
 INTO tmp FROM node where node."id"=id;
 score:=score+tmp;
 SELECT case WHEN tld='fr' THEN 1 ELSE 0 END INTO tmp FROM node, domain WHERE node."id"=id AND domainid=domain.id;
