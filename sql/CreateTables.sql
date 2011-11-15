@@ -46,7 +46,7 @@ CREATE TABLE links (
 /* nodeview allows PostgreSQL to take the URL processing in charge */
 
 DROP VIEW IF EXISTS nodeview;
-CREATE VIEW nodeview AS select id, url||urlpath FROM node;
+CREATE VIEW nodeview AS select id, url||urlpath as url FROM node;
 
 CREATE OR REPLACE FUNCTION nodeview_insert_row() RETURNS TRIGGER AS $nodeview$
 DECLARE
@@ -90,8 +90,8 @@ CREATE TRIGGER nodeview_insert
     EXECUTE PROCEDURE nodeview_insert_row();
 
 
-DROP FUNCTION IF EXISTS ScoreURL(id bigint);
-CREATE FUNCTION ScoreURL(id bigint) RETURNS bigint AS 
+DROP FUNCTION IF EXISTS ScoreURL(nodeid bigint);
+CREATE FUNCTION ScoreURL(nodeid bigint) RETURNS bigint AS 
 $$
 DECLARE
 score bigint;
@@ -104,16 +104,16 @@ substring(lower(midcontext), 'politique') is not NULL OR
 substring(lower(midcontext), 'election') is not NULL OR 
 substring(lower(midcontext), 'primaires') is not NULL OR 
 substring(lower(midcontext), 'socialistes') is not NULL) AND
-"to"=id;
+"to"=nodeid;
 score:=tmp;
 select (CASE WHEN (substring(lower("url"), 'presidentielle') IS NULL) THEN 0 ELSE 2 END)+
 (CASE WHEN (substring(lower("url"), 'politique') IS NULL) THEN 0 ELSE 1 END)+
 (CASE WHEN (substring(lower("url"), 'election') IS NULL) THEN 0 ELSE 1 END)+
 (CASE WHEN (substring(lower("url"), 'primaires') IS NULL) THEN 0 ELSE 3 END)+
 (CASE WHEN (substring(lower("url"), 'socialistes') IS NULL) THEN 0 ELSE 3 END)
-INTO tmp FROM node where node."id"=id;
+INTO tmp FROM node where node."id"=nodeid;
 score:=score+tmp;
-SELECT case WHEN tld='fr' THEN 1 ELSE 0 END INTO tmp FROM node, domain WHERE node."id"=id AND domainid=domain.id;
+SELECT case WHEN tld='fr' THEN 1 ELSE 0 END INTO tmp FROM node, domain WHERE node."id"=nodeid AND domainid=domain.id;
 score:=score+tmp;
 RETURN score;
 END;
