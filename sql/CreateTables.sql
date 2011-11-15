@@ -43,6 +43,53 @@ CREATE TABLE links (
     checked timestamp with time zone
 );
 
+/* nodeview allows PostgreSQL to take the URL processing in charge */
+
+DROP VIEW IF EXISTS nodeview;
+CREATE VIEW nodeview AS select id, url||urlpath FROM node;
+
+CREATE OR REPLACE FUNCTION nodeview_insert_row() RETURNS TRIGGER AS $nodeview$
+DECLARE
+    domainid       BIGINT;
+    nodeid           BIGINT;
+    url                 VARCHAR[]; 
+    domains        VARCHAR[];
+    subdomains2 VARCHAR;
+    domain2        VARCHAR;
+    tld2               VARCHAR;
+    url2               VARCHAR;
+    urlpath2        VARCHAR;
+
+    BEGIN
+            SELECT INTO url  regexp_split_to_array(NEW.url, '[/:]+');
+            SELECT INTO domains string_to_array(url[2], '.');
+            tld2:= domains[array_upper(domains,1)];
+            domain2:=domains[array_upper(domains,1)-1];
+            IF (char_length(url[2]) = char_length(domain2) + char_length(tld2) + 1)
+            THEN 
+                    subdomains2:='';
+            ELSE
+                    subdomains2:=substr(url[2], 1, char_length(url[2])-char_length(domain2)-char_length(tld2)-2); 
+            END IF;
+            SELECT INTO domainid "id" FROM "domain" WHERE "protocol"=url[1] AND "subdomains"=subdomains2 AND "domain"=domain2 AND "tld"=tld2;
+            IF domainid IS NULL THEN
+                 INSERT INTO domain (protocol, subdomains, domain, tld) VALUES (url[1],subdomains2, domain2, tld2) INTO domainid RETURNING id;
+            END IF;
+            url2:=substr(NEW.url, 1, char_length(url[1])+3+char_length(url[2]));
+            urlpath2:=substr(NEW.url, char_length(url2)+1, char_length(NEW.url)-char_length(url2));
+            INSERT INTO node (url, urlpath, domainid) VALUES (url2, urlpath2, domainid) INTO nodeid RETURNING id;
+            NEW.id=nodeid;
+            RETURN NEW;
+        RETURN NULL; -- result is ignored since this is an AFTER trigger
+    END;
+$nodeview$ LANGUAGE plpgsql;
+
+CREATE TRIGGER nodeview_insert
+    INSTEAD OF INSERT ON nodeview
+    FOR EACH ROW
+    EXECUTE PROCEDURE nodeview_insert_row();
+
+
 DROP FUNCTION IF EXISTS ScoreURL(id bigint);
 CREATE FUNCTION ScoreURL(id bigint) RETURNS bigint AS 
 $$
