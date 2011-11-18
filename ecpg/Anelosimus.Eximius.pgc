@@ -78,25 +78,12 @@ exec sql begin declare section;
 	char url_chunk[MAXCO][MAXURLSIZE];
 	unsigned long int url_id[MAXCO];
 	char url_enc[MAXCO][MAXSMALLSTRING];
-	short int url_todo[MAXCO];
-	char LinkRightContext[MAXURLSIZE];
 	char LinkMidContext[MAXURLSIZE];
-	char LinkLeftContext[MAXURLSIZE];
-	char currentPro[MAXURLSIZE];
-	char currentSub[MAXURLSIZE];
-	char currentDom[MAXURLSIZE];
-	char currentTLD[MAXURLSIZE];
-	char currentPath[MAXURLSIZE];
 	char currentRoot[MAXURLSIZE];
 	char currentRootURL[MAXURLSIZE];
 	char currentEffectiveURL[MAXURLSIZE];
 	char currentEncoding[MAXSMALLSTRING];
 	unsigned long int currentID;
-	unsigned long int toID;
-	unsigned long int domainID;
-	int indicator;
-	double score;	
-	char currentEffectiveRootURL[MAXURLSIZE];
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost:5433"; // Data for connection if needed
@@ -111,7 +98,7 @@ void terminate(int sig);
 void checkErrorCode(void){
 	if(sqlca.sqlcode!=0){
 		if(sqlca.sqlcode!=-403){
-    			printf("error code %ld, message %s, rows %ld, warning %c\n", 
+    			printf("error code %ld, message [%s], rows %ld, warning %c\n", 
     			sqlca.sqlcode,sqlca.sqlerrm.sqlerrmc, sqlca.sqlerrd[2], 
     			sqlca.sqlwarn[0]);
 		}
@@ -180,127 +167,6 @@ int getNextURL(bool reinit, int idx){
 		start=end;
 	}
 	return (start!=NULL);
-}
-
-int SplitURL(char *prot, char *subdom, char *dom, char* tld, char *path, char* url)
-{
-	char  *tmp, *start, *s=subdom;
-	//printf("About to split %s\n", url);
-	while(*url!='\0' && *url !=':') { // end of the protocol's field
-		*prot++=*url++;
-	}	
-	*prot='\0';
-	if(*url=='\0')
-		return 0;
-	url++;
-	while(*url=='/')
-		url++;
-	start=subdom;
-	while(*url!='\0' && *url!='/') { // end of domain
-		*subdom++=*url++;
-	}
-	strcpy(path, url);
-	*url='\0';
-	*subdom='\0';
-	// GET TLD
-	tmp=subdom-1;
-	while(tmp>=s && *tmp!='.' && *tmp!='/')
-		tmp--; // find the 1st char of TLD; 
-	if(tmp<s)
-		return 0;
-	*tmp='\0';
-	subdom=tmp; // on the dot before the TLD
-	tmp++;
-	while(*tmp!='\0'&&*tmp!='/')
-			*tld++=*tmp++; // copy tld
-	*tld='\0';
-	// GET Domain
-	tmp=subdom-1; // the last char of domain
-	while(tmp>=s && tmp!=start && *tmp!='.')
-		tmp--; // find the 1st char of Dom; 
-	if(tmp<s)
-                return 0;
-	if(tmp!=start){
-		*tmp='\0';
-		tmp++;
-	}
-	else{
-		*dom++=*tmp++; // copy domain
-		*start='\0';
-	}
-	while(*tmp!='\0')
-		*dom++=*tmp++; // copy domain
-		*dom='\0';
-	//printf("Splitting done.\n");
-	return 1;
-}
-
-int insertURL(void){
-	static char tmp[MAXURLSIZE];	 
-	char *offset;
-	//printf("Inserts from %s ", currentRootURL);
-	if(currentURL[0]=='/'){				// deals with relative paths
-		strcpy(tmp, currentURL);
-		strcpy(currentURL, currentRoot);
-		strcat(currentURL, tmp);
-	};	
-	if(currentURL[strlen(currentURL)-1]=='/')
-		currentURL[strlen(currentURL)-1]='\0'; // remove final '/'
-	//printf("/ %s root:%s\n", currentURL, currentRoot);
-	if(strstr(currentURL, "://")==NULL) // ignore badly formed urls
-		return 0;
-	if(strncmp(currentURL, "javascript:", 11)==0) // ignore javascript stuff
-		return 0;	
-	if(!SplitURL(currentPro, currentSub, currentDom, currentTLD, currentPath, currentURL)){
-		printf("URL %s is malformed\n", currentURL);
-		return 0; // Ignore badly formed url
-	}
-	
-	exec sql BEGIN WORK;
-	//exec sql SET CLIENT_ENCODING TO :currentEncoding;
-	exec sql SET CLIENT_ENCODING TO UTF8;	
-	exec sql SELECT id INTO :domainID :indicator FROM domain WHERE protocol=:currentPro AND subdomains=:currentSub AND domain=:currentDom AND tld=:currentTLD;
-	if(sqlca.sqlcode!=0)
-		indicator=-1;
-	exec sql COMMIT WORK;
-	//printf("%s://%s.%s.%s DomId:%ld, indicator:%d\n",currentPro, currentSub, currentDom, currentTLD, domainID, indicator);
-	if(indicator!=0){
-		exec sql BEGIN WORK;
-		exec sql INSERT INTO domain (protocol, subdomains, domain, tld) VALUES (:currentPro, :currentSub, :currentDom, :currentTLD) RETURNING id INTO :domainID; 
-		checkErrorCode();
-		exec sql COMMIT WORK;
-	}
-	//printf("Insert %s://%s.%s.%s%s, CE:[%s]\n", currentPro, currentSub, currentDom, currentTLD, currentPath, currentEncoding);
-	exec sql COMMIT WORK;
-	exec sql BEGIN WORK;
-	exec sql INSERT INTO node (url, checked, domainid, urlpath) VALUES (:currentURL, NULL, :domainID, :currentPath) RETURNING id INTO :toID; 
-	checkErrorCode();
-	exec sql COMMIT WORK;
-
-	exec sql BEGIN WORK;
-	exec sql SET CLIENT_ENCODING TO :currentEncoding;
-	exec sql INSERT INTO links ("from", "to", "midcontext") VALUES (:currentID , :toID, :LinkMidContext) ; 
-	checkErrorCode();
-        exec sql COMMIT WORK;
-
-	exec sql BEGIN WORK;
-	exec sql UPDATE node SET score=CAST(ScoreURL(:toID) AS double precision) WHERE id=:toID; 
-	checkErrorCode();
-	exec sql COMMIT WORK;
-
-}
-
-void getDirFromURL(char *url){
-	char *offset=url+strlen(url)-1;
-	while(offset >= url && *offset!='/')
-		offset--;
-	if(offset>=url+3 && *offset=='/' && *(offset-1)=='/' && *(offset-2)==':'){
-		// found nothing to trim
-		return;	
-	}
-	else{
-		*offset='\0';
-	}
 }
 
 static void init(CURLM *cm, int i, unsigned long header)
@@ -584,13 +450,27 @@ int main(void) {
 		for (C = 0; C < nburls; ++C) {
 			getNextURL(TRUE, C);
 			strcpy(currentRootURL, url_chunk[C]);
-			strcpy(currentRoot, currentRootURL);
-			getDirFromURL(currentRoot);
 			strcpy(currentEncoding, url_enc[C]);
+			currentID=url_id[C];
 			printf("Processing [%s], %d, encoding [%s]\n", currentRootURL, C, url_enc[C]);
+			
   	 		while(getNextURL(FALSE, C)){
-				insertURL();
+				exec sql BEGIN WORK;
+				if(currentURL[0]=='/'||currentURL[0]=='#'){
+					strcpy(currentRoot, currentRootURL);
+					strcat(currentRoot, currentURL);
+				}
+				else
+					strcpy(currentRoot, currentURL);
+				//printf("Inserting id:%ld url:%s context:%s\n", currentID, currentRoot, LinkMidContext);
+				if(strlen(LinkMidContext)>0)
+					exec sql INSERT INTO linksview ("from", "to", midcontext) VALUES (:currentID, :currentRoot, :LinkMidContext);
+				else
+					exec sql INSERT INTO linksview ("from", "to") VALUES (:currentID, :currentRoot);
+				checkErrorCode();
+				exec SQL END WORK;
 			}
+
 			//printf("Done.\n");
 			if(currentBody[C].size > MaxPageSize){
 				MaxPageSize=currentBody[C].size;
