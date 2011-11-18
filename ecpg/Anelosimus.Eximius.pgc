@@ -456,9 +456,13 @@ int main(void) {
 			
   	 		while(getNextURL(FALSE, C)){
 				exec sql BEGIN WORK;
-				if(currentURL[0]=='/'||currentURL[0]=='#'){
+				if(strlen(currentURL)>1 && (currentURL[0]=='/'||currentURL[0]=='.'||currentURL[0]=='.')){
+
 					strcpy(currentRoot, currentRootURL);
-					strcat(currentRoot, currentURL);
+					if(currentURL[0]!='/' || currentRoot[strlen(currentRoot)-1]!='/')
+						strcat(currentRoot, currentURL);
+					else 
+						strcat(currentRoot, currentURL+1);
 				}
 				else
 					strcpy(currentRoot, currentURL);
