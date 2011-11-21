@@ -88,7 +88,7 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost:5433"; // Data for connection if needed
 const char *user = "hypolite";
-const char *password ="*****";
+const char *password ="****";
 const char *port="5433";
 
 EXEC SQL END DECLARE SECTION;
@@ -466,15 +466,16 @@ int main(void) {
 				}
 				else
 					strcpy(currentRoot, currentURL);
-				//printf("Inserting id:%ld url:%s context:%s\n", currentID, currentRoot, LinkMidContext);
-				if(strlen(LinkMidContext)>0)
-					exec sql INSERT INTO linksview ("from", "to", midcontext) VALUES (:currentID, :currentRoot, :LinkMidContext);
-				else
-					exec sql INSERT INTO linksview ("from", "to") VALUES (:currentID, :currentRoot);
-				checkErrorCode();
+				if(strlen(currentRoot)>7 && (!strncmp(currentRoot, "http://",7) || !strncmp(currentRoot, "https://",8) || !strncmp(currentRoot, "ftp://",6) || !strncmp(currentRoot, "ftps://",7))){
+					if(strlen(LinkMidContext)>0)
+						exec sql INSERT INTO linksview ("from", "to", midcontext) VALUES (:currentID, :currentRoot, :LinkMidContext);
+					else
+						exec sql INSERT INTO linksview ("from", "to") VALUES (:currentID, :currentRoot);
+					checkErrorCode();
+				}
 				exec SQL END WORK;
+					
 			}
-
 			//printf("Done.\n");
 			if(currentBody[C].size > MaxPageSize){
 				MaxPageSize=currentBody[C].size;
