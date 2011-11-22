@@ -61,7 +61,7 @@ DECLARE
     urlpath2        VARCHAR;
 
     BEGIN
-            SELECT INTO url  regexp_split_to_array(NEW.url, '[/:]+');
+            SELECT INTO url  regexp_split_to_array(NEW.url, '[/:#?]+');
             SELECT INTO domains string_to_array(url[2], '.');
             tld2:= domains[array_upper(domains,1)];
             domain2:=domains[array_upper(domains,1)-1];

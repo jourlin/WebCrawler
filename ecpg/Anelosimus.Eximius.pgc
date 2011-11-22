@@ -88,7 +88,7 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost:5433"; // Data for connection if needed
 const char *user = "hypolite";
-const char *password ="****";
+const char *password ="*****";
 const char *port="5433";
 
 EXEC SQL END DECLARE SECTION;
@@ -98,12 +98,14 @@ void terminate(int sig);
 void checkErrorCode(void){
 	if(sqlca.sqlcode!=0){
 		if(sqlca.sqlcode!=-403){
-    			printf("error code %ld, message [%s], rows %ld, warning %c\n", 
+    			fprintf(stderr,"error code %ld, message [%s], rows %ld, warning %c\n", 
     			sqlca.sqlcode,sqlca.sqlerrm.sqlerrmc, sqlca.sqlerrd[2], 
     			sqlca.sqlwarn[0]);
+			if(currentRoot!=NULL)
+				fprintf(stderr, "While Processing %s with enc=%s\n", currentRoot, currentEncoding);
 		}
 		else {
-			// not necessarily wrong : might already got this url
+			// not necessarily wrong : might already got this info
 		}
 	}
 }
@@ -245,6 +247,7 @@ void drop_content(char *mem, const char *tstart, const char *tend){
 int main(void) {
 	CURL *curl;
 	CURLcode res;
+	char *tmp;
 
 	CURLM *cm;
   	CURLMsg *msg;
@@ -351,12 +354,14 @@ int main(void) {
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &nburls);
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_EFFECTIVE_URL, &eurl);
 					curl_easy_getinfo(msg->easy_handle, CURLINFO_CONTENT_TYPE, &ct);
-					
+					strcpy(url_enc[nburls],"LATIN1"); // Default Charset
+
 					if( (ct!=NULL) && 
 							(	(strstr(ct, "text/html")!=NULL) 
 								|| (strstr(ct, "text/xml")!=NULL)
 							)
 						){
+						// fprintf(stderr,"CT:[%s]\n", ct);
 						if(nburls<0 || nburls>=MAXCO){
 							printf("Ooops ! : nburls=%ld\nBye...\n", nburls);
 							exit(-1);
@@ -364,11 +369,8 @@ int main(void) {
 						strcpy(currentEffectiveURL, eurl);
 						strcpy(currentURL, url_chunk[nburls]);
 						strcpy(url_chunk[nburls], eurl);
-						if(strstr(ct, "ISO-8859-1")!=NULL || strstr(ct, "iso-8859-1")!=NULL)
-							strcpy(url_enc[nburls],"LATIN1");
-						else{
+						if(strstr(ct, "utf-8")!=NULL || strstr(ct, "UTF-8")!=NULL)
 							strcpy(url_enc[nburls],"UTF8");
-						};
 						//printf("Warning : %ld[%s] for %s\n", nburls, url_enc[nburls], url_chunk[nburls]);
                                                 exec sql BEGIN WORK;
 						exec sql UPDATE node SET effectiveurl=:currentEffectiveURL WHERE url=:currentURL;
@@ -419,7 +421,7 @@ int main(void) {
 	 
 				if (M == -1) {
 					#ifdef WIN32
-					Sleep(L);
+					Sleep(L);www.postgresql.org/docs/8.2/static/ecpg-errors.htmlexec sql SET CLIENT_ENCODING TO 'UTF8';
 					#else
 					sleep(L / 1000);
 					#endif
@@ -449,13 +451,20 @@ int main(void) {
 		}
 		for (C = 0; C < nburls; ++C) {
 			getNextURL(TRUE, C);
-			strcpy(currentRootURL, url_chunk[C]);
+			strcpy(currentURL, url_chunk[C]);
+			strcpy(currentRootURL, currentURL); 
+			tmp=strstr(currentRootURL,"://"); /* Extract root website URL */
+			if(tmp!=NULL)
+				tmp=strstr(tmp+3, "/");
+			if(tmp!=NULL)
+				*tmp='\0';
 			strcpy(currentEncoding, url_enc[C]);
 			currentID=url_id[C];
-			printf("Processing [%s], %d, encoding [%s]\n", currentRootURL, C, url_enc[C]);
+			fprintf(stderr,"Processing [%s], %d, encoding [%s]\n", currentURL, C, url_enc[C]);
 			
   	 		while(getNextURL(FALSE, C)){
 				exec sql BEGIN WORK;
+				exec sql SET CLIENT_ENCODING TO :currentEncoding; 
 				if(strlen(currentURL)>1 && (currentURL[0]=='/'||currentURL[0]=='.'||currentURL[0]=='.')){
 
 					strcpy(currentRoot, currentRootURL);
@@ -479,7 +488,7 @@ int main(void) {
 			//printf("Done.\n");
 			if(currentBody[C].size > MaxPageSize){
 				MaxPageSize=currentBody[C].size;
-				fprintf(stderr, "*** New maximum page size %ld\n", MaxPageSize);
+				// fprintf(stderr, "*** New maximum page size %ld\n", MaxPageSize);
 			}
 			drop_content(currentBody[C].memory, "<!--", "-->");
 
