@@ -60,7 +60,7 @@
 #include <signal.h>
 
 #define MAXURLSIZE		(100*1024) /* 100 Kb */
-#define MAXCO			200	// Max parrallel connections
+#define MAXCO			10	// Max parrallel connections
 #define MAXSMALLSTRING		512	// Max number of chars in top level domain
 
 exec sql include sqlca;
@@ -274,7 +274,7 @@ int main(void) {
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		EXEC SQL PREPARE get_url FROM "SELECT url||urlpath as url, id FROM node WHERE checked IS NULL AND score IS NOT NULL ORDER BY score DESC, length(urlpath) ASC LIMIT 200 FOR UPDATE ;";
+		EXEC SQL PREPARE get_url FROM "SELECT url||urlpath as url, id FROM node WHERE checked IS NULL AND score IS NOT NULL ORDER BY score DESC, length(urlpath) ASC LIMIT 10 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL COMMIT WORK;
 		EXEC SQL BEGIN WORK;
@@ -421,7 +421,7 @@ int main(void) {
 	 
 				if (M == -1) {
 					#ifdef WIN32
-					Sleep(L);www.postgresql.org/docs/8.2/static/ecpg-errors.htmlexec sql SET CLIENT_ENCODING TO 'UTF8';
+					Sleep(L);
 					#else
 					sleep(L / 1000);
 					#endif
