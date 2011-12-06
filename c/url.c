@@ -51,17 +51,18 @@
 #include "fmgr.h"
 #include "libpq/pqformat.h"		/* needed for send/recv functions */
 
+#define	MAXURLCHARS	1024
 
 PG_MODULE_MAGIC;
 
 typedef struct Url
-{
-	char	str[255];
+{	
 	unsigned short	length;
 	unsigned short	subdomains;
 	unsigned short	seconddomain;
 	unsigned short	topdomain;
 	unsigned short	path;
+	char	str[MAXURLCHARS];
 }	Url;
 
 /*
@@ -71,8 +72,18 @@ typedef struct Url
  */
 Datum		url_in(PG_FUNCTION_ARGS);
 Datum		url_out(PG_FUNCTION_ARGS);
+Datum		url_pro(PG_FUNCTION_ARGS);
+Datum		url_sub(PG_FUNCTION_ARGS);
+Datum		url_dom(PG_FUNCTION_ARGS);
 Datum		url_top(PG_FUNCTION_ARGS);
-
+Datum		url_pat(PG_FUNCTION_ARGS);
+/* comparisons */
+Datum		url_lt(PG_FUNCTION_ARGS);
+Datum		url_le(PG_FUNCTION_ARGS);
+Datum		url_eq(PG_FUNCTION_ARGS);
+Datum		url_ge(PG_FUNCTION_ARGS);
+Datum		url_gt(PG_FUNCTION_ARGS);
+Datum		url_cmp(PG_FUNCTION_ARGS);
 
 /*****************************************************************************
  * Input/Output functions
@@ -95,11 +106,11 @@ url_in(PG_FUNCTION_ARGS)
 	strcpy(result->str, strin);			/* copy the URL */
 	length=strlen(strin);
 	result->length = length;			/* copy length */
-	if(length>255)					/* Check URL length */
+	if(length>MAXURLCHARS)					/* Check URL length */
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-				 errmsg("URL should contain less strictly less than 256 characters : \"%s\"",
-						strin)));
+				 errmsg("URL should contain strictly less than %u characters : \"%s\"\ncontains %u",
+						MAXURLCHARS, strin, length)));
 	/* Search for the end of the protocol part */
 	while(*strin!='\0' && *strin!='/')
 		strin++;
@@ -108,7 +119,8 @@ url_in(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
 				 errmsg("URL should start with a protocol (e.g. http://) : \"%s\"",
 						strin)));
-	++strin;
+	while(*strin=='/')
+		strin++;	/* go to the subdomains part */
 	subdomains= (unsigned short) (strin - PG_GETARG_CSTRING(0)); /* character offset for the subdomain part of the url */
 	/* Search for the end of the root URL */
 	while(*strin!='\0' && *strin!='/')
@@ -139,26 +151,130 @@ url_in(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(url_out);
-
-Datum
-url_out(PG_FUNCTION_ARGS)
+Datum url_out(PG_FUNCTION_ARGS)
 {
 	Url    *url = (Url *) PG_GETARG_POINTER(0);
 	char	   *result;
 
-	result = (char *) palloc(url->length+1+5*5); /* 5 numbers of at most 5 digits each */
-	snprintf(result, url->length+1+5*5, "%s[%u,%u,%u,%u,%u]", url->str, url->length, url->subdomains, url->seconddomain, url->topdomain, url->path);
+	result = (char *) palloc(url->length+1); 
+	snprintf(result, url->length+1, "%s", url->str);
 	PG_RETURN_CSTRING(result);
 }
 
-Datum
-url_top(PG_FUNCTION_ARGS)
+PG_FUNCTION_INFO_V1(url_pro);	/* extraction of protocol part */
+Datum url_pro(PG_FUNCTION_ARGS)
 {
 	Url    *url = (Url *) PG_GETARG_POINTER(0);
 	char	   *result;
-	result = (char *) palloc(100);
-	snprintf(result, 100, "%s", url->str);
+	result = (char *) palloc(url->subdomains+1);
+	snprintf(result, url->subdomains+1 , "%s", url->str);
 	PG_RETURN_CSTRING(result);
 }
 
+PG_FUNCTION_INFO_V1(url_sub);
+Datum url_sub(PG_FUNCTION_ARGS)
+{
+	Url    *url = (Url *) PG_GETARG_POINTER(0);
+	char	   *result;
+	result = (char *) palloc(url->seconddomain-url->subdomains+1);
+	snprintf(result, url->seconddomain-url->subdomains+1 , "%s", url->str+url->subdomains);
+	PG_RETURN_CSTRING(result);
+}
+
+PG_FUNCTION_INFO_V1(url_dom);
+Datum url_dom(PG_FUNCTION_ARGS)
+{
+	Url    *url = (Url *) PG_GETARG_POINTER(0);
+	char	   *result;
+	result = (char *) palloc(url->topdomain-url->seconddomain+1);
+	snprintf(result, url->topdomain-url->seconddomain+1 , "%s", url->str+url->seconddomain);
+	PG_RETURN_CSTRING(result);
+}
+
+PG_FUNCTION_INFO_V1(url_top);
+Datum url_top(PG_FUNCTION_ARGS)
+{
+	Url    *url = (Url *) PG_GETARG_POINTER(0);
+	char	   *result;
+	result = (char *) palloc(url->path-url->topdomain+1);
+	snprintf(result, url->path-url->topdomain+1 , "%s", url->str+url->topdomain);
+	PG_RETURN_CSTRING(result);
+}
+
+PG_FUNCTION_INFO_V1(url_pat);
+Datum url_pat(PG_FUNCTION_ARGS)
+{
+	Url    *url = (Url *) PG_GETARG_POINTER(0);
+	char	   *result;
+	result = (char *) palloc(url->length-url->path+1);
+	snprintf(result, url->length-url->path+1 , "%s", url->str+url->path);
+	PG_RETURN_CSTRING(result);
+}
+
+/* Comparison functions (used in btree indexing) */
+
+static int
+url_cmp_internal(Url * a, Url * b)
+{
+	int result=strcmp(a->str, b->str);
+	if (result < 0)
+		return -1;
+	if (result > 0)
+		return 1;
+	return 0;
+}
+
+PG_FUNCTION_INFO_V1(url_lt);
+Datum url_lt(PG_FUNCTION_ARGS)
+{
+	Url    *a = (Url *) PG_GETARG_POINTER(0);
+	Url    *b = (Url *) PG_GETARG_POINTER(1);
+	PG_RETURN_BOOL(url_cmp_internal(a, b) < 0);
+}
+
+PG_FUNCTION_INFO_V1(url_le);
+Datum url_le(PG_FUNCTION_ARGS)
+{
+	Url    *a = (Url *) PG_GETARG_POINTER(0);
+	Url    *b = (Url *) PG_GETARG_POINTER(1);
+	PG_RETURN_BOOL(url_cmp_internal(a, b) <= 0);
+}
+
+PG_FUNCTION_INFO_V1(url_eq);
+Datum url_eq(PG_FUNCTION_ARGS)
+{
+	Url    *a = (Url *) PG_GETARG_POINTER(0);
+	Url    *b = (Url *) PG_GETARG_POINTER(1);
+	/* a short path */
+	if((a->length != b->length)||(a->subdomains != b->subdomains)||
+		(a->seconddomain != b->seconddomain)||(a->topdomain != b->topdomain)||
+		(a->path != b->path))
+		PG_RETURN_BOOL(FALSE);
+	/* and eventually... */
+	PG_RETURN_BOOL(url_cmp_internal(a, b) == 0);
+}
+
+PG_FUNCTION_INFO_V1(url_ge);
+Datum url_ge(PG_FUNCTION_ARGS)
+{
+	Url    *a = (Url *) PG_GETARG_POINTER(0);
+	Url    *b = (Url *) PG_GETARG_POINTER(1);
+	PG_RETURN_BOOL(url_cmp_internal(a, b) >= 0);
+}
+
+PG_FUNCTION_INFO_V1(url_gt);
+Datum url_gt(PG_FUNCTION_ARGS)
+{
+	Url    *a = (Url *) PG_GETARG_POINTER(0);
+	Url    *b = (Url *) PG_GETARG_POINTER(1);
+	PG_RETURN_BOOL(url_cmp_internal(a, b) > 0);
+}
+
+PG_FUNCTION_INFO_V1(url_cmp);
+Datum url_cmp(PG_FUNCTION_ARGS)
+{
+	Url    *a = (Url *) PG_GETARG_POINTER(0);
+	Url    *b = (Url *) PG_GETARG_POINTER(1);
+	PG_RETURN_INT32(url_cmp_internal(a, b));
+}
 
