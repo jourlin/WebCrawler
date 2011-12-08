@@ -88,7 +88,7 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = "webcrawler@localhost:5433"; // Data for connection if needed
 const char *user = "hypolite";
-const char *password ="******";
+const char *password ="*****";
 const char *port="5433";
 
 EXEC SQL END DECLARE SECTION;
@@ -274,7 +274,7 @@ int main(void) {
 	while(1){
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		EXEC SQL PREPARE get_url FROM "SELECT url||urlpath as url, id FROM node WHERE checked IS NULL AND score IS NOT NULL ORDER BY score DESC, length(urlpath) ASC LIMIT 10 FOR UPDATE ;";
+		EXEC SQL PREPARE get_url FROM "SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND score IS NOT NULL ORDER BY score DESC LIMIT 10 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL COMMIT WORK;
 		EXEC SQL BEGIN WORK;
