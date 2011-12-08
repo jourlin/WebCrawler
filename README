@@ -15,10 +15,11 @@
 
 - Install : 
 0. if needed, install GNU/gcc and PostgreSQL in your O.S.
-you will also need the following packages : libecpg-dev, libcurl3-dev
+you will also need the following packages : libecpg-dev, libcurl3-dev, postgresql-server-dev-9.1 (adapt to current versions if needed)
 1. make sql/CreateTables.sql or simply execute the sql 
 commands its contains on your database.
 e.g. : psql -Umyrole -dmybase -W -f "sql/CreateTables.sql"
+The role must have superuser permissions to allow the use of C functions.
 2. edit ecpg/Anelosimus.Eximius.pgc and include your database 
 details in the source (lines 99-101 and 386-388)
 3. mkdir bin
