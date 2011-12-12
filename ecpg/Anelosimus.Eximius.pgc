@@ -60,7 +60,7 @@
 #include <signal.h>
 
 #define MAXURLSIZE		(100*1024) /* 100 Kb */
-#define MAXCO			10	// Max parrallel connections
+#define MAXCO			200	// Max parrallel connections
 #define MAXSMALLSTRING		512	// Max number of chars in top level domain
 
 exec sql include sqlca;
@@ -86,10 +86,10 @@ exec sql begin declare section;
 	unsigned long int currentID;
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
-const char *target = "webcrawler@localhost:5432"; // Data for connection if needed
+const char *target = "webcrawler3@localhost:5433"; // Data for connection if needed
 const char *user = "hypolite";
 const char *password ="****";
-const char *port="5432";
+const char *port="5433";
 
 EXEC SQL END DECLARE SECTION;
 
@@ -266,15 +266,15 @@ int main(void) {
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
-	exec sql connect to :target USER :user USING :password;
 // 	if no details are needed, simply do :
 //	exec sql connect to 'unix:postgresql:locahost' ;
 	checkErrorCode();
 //	exec sql SET CLIENT_ENCODING TO 'UTF8'; 
 	while(1){
+		exec sql connect to :target USER :user USING :password;
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		EXEC SQL PREPARE get_url FROM "SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND score IS NOT NULL ORDER BY score DESC LIMIT 10 FOR UPDATE ;";
+		EXEC SQL PREPARE get_url FROM "SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND score IS NOT NULL ORDER BY score DESC, url_len(url) ASC LIMIT 200 FOR UPDATE ;";
 		checkErrorCode();
 		EXEC SQL COMMIT WORK;
 		EXEC SQL BEGIN WORK;
@@ -509,9 +509,8 @@ int main(void) {
   		}
 		curl_multi_cleanup(cm);
 		curl_global_cleanup();
-		
+		exec sql disconnect all;	
 	}
-	EXEC SQL disconnect all;
 	return EXIT_SUCCESS;
 }
 

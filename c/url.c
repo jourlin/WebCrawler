@@ -77,6 +77,7 @@ Datum		url_sub(PG_FUNCTION_ARGS);
 Datum		url_dom(PG_FUNCTION_ARGS);
 Datum		url_top(PG_FUNCTION_ARGS);
 Datum		url_pat(PG_FUNCTION_ARGS);
+Datum		url_len(PG_FUNCTION_ARGS);
 /* comparisons */
 Datum		url_lt(PG_FUNCTION_ARGS);
 Datum		url_le(PG_FUNCTION_ARGS);
@@ -209,6 +210,13 @@ Datum url_pat(PG_FUNCTION_ARGS)
 	result = (char *) palloc(url->length-url->path+1);
 	snprintf(result, url->length-url->path+1 , "%s", url->str+url->path);
 	PG_RETURN_CSTRING(result);
+}
+
+PG_FUNCTION_INFO_V1(url_len);
+Datum url_len(PG_FUNCTION_ARGS)
+{
+	Url    *url = (Url *) PG_GETARG_POINTER(0);
+	PG_RETURN_INT32(url->length);
 }
 
 /* Comparison functions (used in btree indexing) */

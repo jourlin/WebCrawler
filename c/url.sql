@@ -35,6 +35,11 @@ CREATE OR REPLACE FUNCTION url_pat(url)
    AS '/tmp/url'
    LANGUAGE C IMMUTABLE STRICT;
 
+CREATE OR REPLACE FUNCTION url_len(url)
+   RETURNS INTEGER
+   AS '/tmp/url'
+   LANGUAGE C IMMUTABLE STRICT;
+
 CREATE TYPE url (
    internallength = 266,
    input = url_in,
