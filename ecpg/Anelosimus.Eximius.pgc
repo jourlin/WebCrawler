@@ -291,17 +291,18 @@ int main(void) {
 			EXEC SQL FETCH NEXT FROM url_cursor INTO :currentRootURL, :currentID;
 			//printf("[%d] is processing %s\n", pid, currentRootURL );
 			checkErrorCode();
-			if(sqlca.sqlcode!=0)
-				return;
+			if(sqlca.sqlcode!=0){
+				break;
+			}
 			exec sql UPDATE node SET checked=now() WHERE id=:currentID;
 	                checkErrorCode();
-	                if(sqlca.sqlcode!=0)
-	                        return;
+	                if(sqlca.sqlcode!=0){
+	                        break;
+			}
 			strcpy(url_chunk[nburls], currentRootURL);
 			url_id[nburls]=currentID;
 			nburls++;
 		}
-		EXEC SQL CLOSE url_cursor;
 		EXEC SQL COMMIT WORK;
 		curl_global_init(CURL_GLOBAL_ALL);
 		cm = curl_multi_init();
@@ -460,7 +461,7 @@ int main(void) {
 				*tmp='\0';
 			strcpy(currentEncoding, url_enc[C]);
 			currentID=url_id[C];
-			fprintf(stderr,"Processing [%s], %d, encoding [%s]\n", currentURL, C, url_enc[C]);
+			fprintf(stderr,"process %d is processing [%s], %d, encoding [%s]\n", pid, currentURL, C, url_enc[C]);
 			
   	 		while(getNextURL(FALSE, C)){
 				exec sql BEGIN WORK;
@@ -476,10 +477,14 @@ int main(void) {
 				else
 					strcpy(currentRoot, currentURL);
 				if(strlen(currentRoot)>7 && (!strncmp(currentRoot, "http://",7) || !strncmp(currentRoot, "https://",8) || !strncmp(currentRoot, "ftp://",6) || !strncmp(currentRoot, "ftps://",7))){
-					if(strlen(LinkMidContext)>0)
+					if(strlen(LinkMidContext)>0){
+						//fprintf(stderr,"Insert link from %lu to [%s] with text [%s]\n", currentID, currentRoot,LinkMidContext);
 						exec sql INSERT INTO linksview ("from", "to", midcontext) VALUES (:currentID, :currentRoot, :LinkMidContext);
-					else
+					}
+					else{
+						//fprintf(stderr,"Insert link from %lu to [%s]\n", currentID, currentRoot);
 						exec sql INSERT INTO linksview ("from", "to") VALUES (:currentID, :currentRoot);
+					}					
 					checkErrorCode();
 				}
 				exec SQL END WORK;
