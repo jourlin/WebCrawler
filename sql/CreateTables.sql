@@ -24,6 +24,14 @@ CREATE TABLE links (
     checked timestamp with time zone
 );
 
+CREATE OR REPLACE FUNCTION normalize(str TEXT) RETURNS TEXT AS 
+$$
+DECLARE
+BEGIN
+RETURN lower(str);
+END;
+$$ LANGUAGE plpgsql;
+
 DROP VIEW IF EXISTS linksview;
 CREATE VIEW linksview AS SELECT links.from as from, url as to, midcontext FROM links, node WHERE links.to = node.id;
 
@@ -33,18 +41,19 @@ to_id BIGINT;
 link_id BIGINT;
 BEGIN
 SELECT INTO to_id "id" FROM "node" WHERE "url"=NEW."to";
-        IF to_id IS NULL THEN
+IF to_id IS NULL THEN
          INSERT INTO node (url, score) VALUES (NEW."to", ScoreURL(NEW."to")) INTO to_id RETURNING id;
         END IF;
 SELECT INTO link_id "id" FROM "links" WHERE "from"=NEW."from" AND "to"=to_id;
 IF link_id IS NULL THEN
     INSERT INTO links ("from", "to", midcontext, checked) VALUES (NEW."from", to_id, NEW.midcontext, now());
 END IF;
+IF (NEW.midcontext IS NOT NULL) AND (substring(normalize(NEW.midcontext), 'presidentielles') IS NOT NULL) THEN
+UPDATE node SET score=score+1 WHERE url=NEW."to";
+END IF;
 RETURN NEW;
-        RETURN NULL; -- result is ignored since this is an AFTER trigger
+RETURN NULL; -- result is ignored since this is an AFTER trigger
 END;
-
-
 $linksview$ LANGUAGE plpgsql;
 
 CREATE TRIGGER linksview_insert
@@ -62,11 +71,11 @@ IF CAST(url_top(url) AS TEXT) ='fr' THEN
 ELSE
 	score=0;
 END IF;
-IF substring(CAST(url_sub(url) AS TEXT), 'presidentielles') IS NOT NULL THEN
-	score+=2;
+IF substring(normalize(CAST(url_sub(url) AS TEXT)), 'presidentielles') IS NOT NULL THEN
+	score=score+2;
 END IF;
-IF substring(CAST(url_dom(url) AS TEXT), 'presidentielles') IS NOT NULL THEN
-	score+=3;
+IF substring(normalize(CAST(url_dom(url) AS TEXT)), 'presidentielles') IS NOT NULL THEN
+	score=score+3;
 END IF;
 RETURN score;
 END;
