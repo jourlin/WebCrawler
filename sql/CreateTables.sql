@@ -52,16 +52,23 @@ CREATE TRIGGER linksview_insert
     FOR EACH ROW
     EXECUTE PROCEDURE linksview_insert_row();
 
-DROP FUNCTION IF EXISTS ScoreURL(url url);
-CREATE FUNCTION ScoreURL(url url) RETURNS bigint AS 
+CREATE OR REPLACE FUNCTION ScoreURL(url url) RETURNS bigint AS 
 $$
 DECLARE
+score INT;
 BEGIN
 IF CAST(url_top(url) AS TEXT) ='fr' THEN
-	RETURN 1;
+	score=1;
 ELSE
-	RETURN 0;
+	score=0;
 END IF;
+IF substring(CAST(url_sub(url) AS TEXT), 'presidentielles') IS NOT NULL THEN
+	score+=2;
+END IF;
+IF substring(CAST(url_dom(url) AS TEXT), 'presidentielles') IS NOT NULL THEN
+	score+=3;
+END IF;
+RETURN score;
 END;
 $$ LANGUAGE plpgsql;
 
