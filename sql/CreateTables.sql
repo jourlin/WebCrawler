@@ -10,6 +10,9 @@ CREATE TABLE node (
     content text
 );
 
+CREATE INDEX node_ind ON node
+   USING btree(url url_ops);
+
 -- importation : INSERT INTO node (url) SELECT CAST(url||urlpath AS url) FROM (SELECT DISTINCT url, urlpath FROM node_old WHERE length(url||urlpath) <1024) as x;
 
 DROP TABLE IF EXISTS links CASCADE;
