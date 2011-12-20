@@ -74,11 +74,16 @@ IF CAST(url_top(url) AS TEXT) ='fr' THEN
 ELSE
 	score=0;
 END IF;
-IF substring(normalize(CAST(url_sub(url) AS TEXT)), 'presidentielles') IS NOT NULL THEN
+IF substring(lower(CAST(url_path(url) AS TEXT)), 'presidentielles') IS NOT NULL 
+   OR substring(lower(CAST(url_path(url) AS TEXT)), 'pr%e9sidentielles') IS NOT NULL
+THEN
 	score=score+2;
 END IF;
-IF substring(normalize(CAST(url_dom(url) AS TEXT)), 'presidentielles') IS NOT NULL THEN
+IF substring(lower(CAST(url_sub(url) AS TEXT)), 'presidentielles') IS NOT NULL THEN
 	score=score+3;
+END IF;
+IF substring(lower(CAST(url_dom(url) AS TEXT)), 'presidentielles') IS NOT NULL THEN
+	score=score+4;
 END IF;
 RETURN score;
 END;
