@@ -31,7 +31,7 @@ CREATE OR REPLACE FUNCTION normalize(str TEXT) RETURNS TEXT AS
 $$
 DECLARE
 BEGIN
-RETURN lower(str);
+RETURN lower(replace(replace(str, 'Ã©', 'é'), '&eacute', 'é'));
 END;
 $$ LANGUAGE plpgsql;
 

@@ -59,7 +59,7 @@
 #include <sys/types.h> 
 #include <signal.h>
 
-#define MAXURLSIZE		(100*1024) /* 100 Kb */
+#define MAXURLSIZE		1023 /* should be less than max chars for type url */
 #define MAXCO			21	// Max parrallel connections
 #define MAXSMALLSTRING		512	// Max number of chars in top level domain
 
@@ -86,10 +86,10 @@ exec sql begin declare section;
 	unsigned long int currentID;
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
-const char *target = "webcrawler3@localhost:5433"; // Data for connection if needed
+const char *target = "webcrawler@localhost:5432"; // Data for connection if needed
 const char *user = "hypolite";
-const char *password ="****";
-const char *port="5433";
+const char *password ="******";
+const char *port="5431";
 
 EXEC SQL END DECLARE SECTION;
 

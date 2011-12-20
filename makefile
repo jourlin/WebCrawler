@@ -17,7 +17,7 @@ c/url.so: c/url.c
 	echo $(SHAREDIR)
 	  cd c; make ; cd .. 
 CreateTables: $(SHAREDIR)/extension/url.sql sql/url.sql sql/CreateTables.sql 
-	psql -f sql/url.sql
+	psql -f $(SHAREDIR)/extension/url.sql
 	psql -f sql/CreateTables.sql 
 
 bin/Anelosimus.Eximius : ecpg/Anelosimus.Eximius.pgc 
