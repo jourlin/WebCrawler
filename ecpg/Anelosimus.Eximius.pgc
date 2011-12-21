@@ -86,10 +86,9 @@ exec sql begin declare section;
 	unsigned long int currentID;
 exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
-const char *target = "webcrawler@localhost:5432"; // Data for connection if needed
-const char *user = "hypolite";
-const char *password ="******";
-const char *port="5431";
+const char *target = _TARGET_; // Data for connection if needed
+const char *user = _USER_;
+const char *password =_PASSWORD_;
 
 EXEC SQL END DECLARE SECTION;
 
