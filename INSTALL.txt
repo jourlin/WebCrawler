@@ -1,0 +1,19 @@
+********************
+** HOW TO INSTALL **
+********************
+
+1. Create a postgresql database
+2. Edit the first 5 lines 'makefile' to provide connection details to your DB
+3. Check if the 'pg_config' command exists. If not, change comment/uncomment the relevant
+lines in makefile.
+4. Execute 'sudo make extensions' to extend Postgresql with the user-defined type 'url'
+5. Execute 'make CreateTables' to set up everything on the PG server.
+6. Execute 'make' to make an executable crawler.
+7. Insert the boot-strap URLs into table node, e.g. 
+INSERT INTO NODE (url, score) VALUES ('http://www.jourlin.com', 1.0);
+...
+8. Start a few processes : './bin/Anelosimus.Eximius &'
+Or 'nohup ./bin/Anelosimus.Eximius &' for a more robust process
+Or './bin/Anelosimus.Eximius >& /dev/null &' to get rid of logs.
+
+
