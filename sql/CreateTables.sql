@@ -7,6 +7,7 @@ CREATE TABLE node (
     effectiveurl url,
     checked timestamp with time zone,
     score double precision,
+    depth INTEGER,
     content text
 );
 
@@ -20,6 +21,7 @@ CREATE TABLE links (
     id BIGSERIAL PRIMARY KEY,
     "from" bigint NOT NULL REFERENCES node(id) ON UPDATE CASCADE ON DELETE CASCADE,
     "to" bigint NOT NULL REFERENCES node(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    count	INTEGER,
     leftcontext text,
     midcontext text,
     rightcontext text,
@@ -42,14 +44,23 @@ CREATE OR REPLACE FUNCTION linksview_insert_row() RETURNS TRIGGER AS $linksview$
 DECLARE
 to_id BIGINT;
 link_id BIGINT;
+from_depth INTEGER;
+old_depth INTEGER;
 BEGIN
-SELECT INTO to_id "id" FROM "node" WHERE "url"=NEW."to";
+SELECT INTO from_depth "depth" FROM "node" WHERE "id"=NEW."from";
+SELECT INTO to_id, old_depth "id","depth" FROM "node" WHERE "url"=NEW."to";
 IF to_id IS NULL THEN
-         INSERT INTO node (url, score) VALUES (NEW."to", ScoreURL(NEW."to")) INTO to_id RETURNING id;
-        END IF;
+         INSERT INTO node (url, score, depth) VALUES (NEW."to", ScoreURL(NEW."to"), from_depth+1) INTO to_id RETURNING id;
+ELSE
+         IF from_depth+1 < old_depth THEN
+             UPDATE node SET depth=from_depth+1 WHERE "id"=to_id;
+         END IF;
+END IF;
 SELECT INTO link_id "id" FROM "links" WHERE "from"=NEW."from" AND "to"=to_id;
 IF link_id IS NULL THEN
-    INSERT INTO links ("from", "to", midcontext, checked) VALUES (NEW."from", to_id, NEW.midcontext, now());
+    INSERT INTO links ("from", "to", midcontext, checked, "count") VALUES (NEW."from", to_id, NEW.midcontext, now(), 1);
+ELSE
+    UPDATE links SET "count"="count"+1, midcontext= midcontext ||';'|| NEW.midcontext WHERE "from"=NEW."from" AND "to"=to_id;
 END IF;
 IF (NEW.midcontext IS NOT NULL) AND (substring(normalize(NEW.midcontext), 'presidentielles') IS NOT NULL) THEN
 UPDATE node SET score=score+1 WHERE url=NEW."to";

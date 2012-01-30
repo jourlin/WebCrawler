@@ -1,15 +1,15 @@
 USER = hypolite
-DBNAME = webcrawler
+DBNAME = presidentielles-02-2012
 HOST = localhost
-PORT = 5433
-PASSWORD= TEST
+PORT = 5435
+PASSWORD= TEST 
 
 TARGET =$(DBNAME)@$(HOST):$(PORT)
 
 # Usual path for pg_config :
- PG_CONFIG = pg_config
+# PG_CONFIG = pg_config
 # Or specific :
-# PG_CONFIG = /usr/local/pgsql/bin/pg_config
+ PG_CONFIG = /usr/local/pgsql/bin/pg_config
 SHAREDIR = $(shell $(PG_CONFIG) --sharedir)
 
 all:  bin/Anelosimus.Eximius
