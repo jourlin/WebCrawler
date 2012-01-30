@@ -1,8 +1,8 @@
 USER = hypolite
-DBNAME = presidentielles-02-2012
+DBNAME = elections022012
 HOST = localhost
 PORT = 5435
-PASSWORD= TEST 
+PASSWORD= TEST
 
 TARGET =$(DBNAME)@$(HOST):$(PORT)
 

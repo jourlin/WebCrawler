@@ -38,7 +38,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP VIEW IF EXISTS linksview;
-CREATE VIEW linksview AS SELECT links.from as from, url as to, midcontext FROM links, node WHERE links.to = node.id;
+CREATE VIEW linksview AS SELECT links.from as from, url as to, leftcontext, midcontext, rightcontext FROM links, node WHERE links.to = node.id;
 
 CREATE OR REPLACE FUNCTION linksview_insert_row() RETURNS TRIGGER AS $linksview$
 DECLARE
@@ -58,9 +58,9 @@ ELSE
 END IF;
 SELECT INTO link_id "id" FROM "links" WHERE "from"=NEW."from" AND "to"=to_id;
 IF link_id IS NULL THEN
-    INSERT INTO links ("from", "to", midcontext, checked, "count") VALUES (NEW."from", to_id, NEW.midcontext, now(), 1);
+    INSERT INTO links ("from", "to", leftcontext, midcontext, rightcontext, checked, "count") VALUES (NEW."from", to_id, NEW.leftcontext, NEW.midcontext, NEW.rightcontext, now(), 1);
 ELSE
-    UPDATE links SET "count"="count"+1, midcontext= midcontext ||';'|| NEW.midcontext WHERE "from"=NEW."from" AND "to"=to_id;
+    UPDATE links SET "count"="count"+1, leftcontext= leftcontext ||';'|| NEW.leftcontext, midcontext= midcontext ||';'|| NEW.midcontext, rightcontext= rightcontext ||';'|| NEW.rightcontext WHERE "from"=NEW."from" AND "to"=to_id;
 END IF;
 IF (NEW.midcontext IS NOT NULL) AND (substring(normalize(NEW.midcontext), 'presidentielles') IS NOT NULL) THEN
 UPDATE node SET score=score+1 WHERE url=NEW."to";
