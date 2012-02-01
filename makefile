@@ -1,5 +1,5 @@
 USER = hypolite
-DBNAME = elections022012
+DBNAME = campagne-012012
 HOST = localhost
 PORT = 5435
 PASSWORD= TEST

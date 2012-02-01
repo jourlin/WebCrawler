@@ -33,7 +33,7 @@ CREATE OR REPLACE FUNCTION normalize(str TEXT) RETURNS TEXT AS
 $$
 DECLARE
 BEGIN
-RETURN lower(replace(replace(str, 'Ã©', 'é'), '&eacute', 'é'));
+RETURN lower(replace(replace(replace(replace(str, 'Ã©', 'e'), '&eacute;', 'e'), 'Ã¨', 'e'), '&egrave;', 'e'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -46,6 +46,8 @@ to_id BIGINT;
 link_id BIGINT;
 from_depth INTEGER;
 old_depth INTEGER;
+new_score INTEGER;
+context   TEXT;
 BEGIN
 SELECT INTO from_depth "depth" FROM "node" WHERE "id"=NEW."from";
 SELECT INTO to_id, old_depth "id","depth" FROM "node" WHERE "url"=NEW."to";
@@ -62,8 +64,69 @@ IF link_id IS NULL THEN
 ELSE
     UPDATE links SET "count"="count"+1, leftcontext= leftcontext ||';'|| NEW.leftcontext, midcontext= midcontext ||';'|| NEW.midcontext, rightcontext= rightcontext ||';'|| NEW.rightcontext WHERE "from"=NEW."from" AND "to"=to_id;
 END IF;
-IF (NEW.midcontext IS NOT NULL) AND (substring(normalize(NEW.midcontext), 'presidentielles') IS NOT NULL) THEN
-UPDATE node SET score=score+1 WHERE url=NEW."to";
+
+-- Calculate score relating to citation context
+
+new_score=0;
+context ='';
+IF NEW.leftcontext IS NOT NULL THEN 
+    context = context || NEW.leftcontext;
+END IF;
+IF NEW.midcontext IS NOT NULL THEN 
+    context = context || NEW.midcontext;
+END IF;
+IF NEW.rightcontext IS NOT NULL THEN 
+    context = context || NEW.rightcontext;
+END IF;
+
+IF (substring(normalize(context), 'hollande') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'le pen') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'de villepin') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'joly') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'melanchon') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'sarkozy') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'dupont-aignan') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'bayrou') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'chevenement') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'morin') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'lepage') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'nihous') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'boutin') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'poutou') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+IF (substring(normalize(context), 'arthaud') IS NOT NULL) THEN
+new_score = new_score +1;
+END IF;
+
+IF new_score > 0 THEN
+    UPDATE node SET score=score+new_score WHERE url=NEW."to";
 END IF;
 RETURN NEW;
 RETURN NULL; -- result is ignored since this is an AFTER trigger
@@ -79,23 +142,75 @@ CREATE OR REPLACE FUNCTION ScoreURL(url url) RETURNS bigint AS
 $$
 DECLARE
 score INT;
+normurl TEXT;
 BEGIN
+normurl=normalize(CAST(url AS text));
+
 IF CAST(url_top(url) AS TEXT) ='fr' THEN
 	score=1;
 ELSE
 	score=0;
 END IF;
-IF substring(lower(CAST(url_pat(url) AS TEXT)), 'presidentielles') IS NOT NULL 
-   OR substring(lower(CAST(url_pat(url) AS TEXT)), 'pr%e9sidentielles') IS NOT NULL
-THEN
-	score=score+2;
+IF substring(normurl, 'hollande') IS NOT NULL THEN
+	score=score+1;
 END IF;
-IF substring(lower(CAST(url_sub(url) AS TEXT)), 'presidentielles') IS NOT NULL THEN
-	score=score+3;
+IF substring(normurl, 'lepen') IS NOT NULL OR substring(normurl, 'le-pen') IS NOT NULL THEN
+	score=score+1;
 END IF;
-IF substring(lower(CAST(url_dom(url) AS TEXT)), 'presidentielles') IS NOT NULL THEN
-	score=score+4;
+
+IF substring(normurl, 'villepin') IS NOT NULL THEN
+	score=score+1;
 END IF;
+
+IF substring(normurl, 'joly') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'melanchon') IS NOT NULL OR substring(normurl, 'm%e8lanchon') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'sarkozy') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'dupontaignan') IS NOT NULL OR substring(normurl, 'dupont-aignan') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'bayrou') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'chevenement') IS NOT NULL OR substring(normurl, 'chev%e8nement') IS NOT NULL  THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'morin') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'lepage') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'nihous') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'boutin') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'poutou') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+IF substring(normurl, 'arthaud') IS NOT NULL THEN
+	score=score+1;
+END IF;
+
+
 RETURN score;
 END;
 $$ LANGUAGE plpgsql;
