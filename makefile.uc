@@ -1,15 +1,15 @@
-USER = hypolite
-DBNAME = campagne-012012
-HOST = localhost
-PORT = 5435
-PASSWORD= TEST
+USER = __USER__
+DBNAME = __DB__
+HOST = __HOST__
+PORT = __PORT__
+PASSWORD= __PASSWD__
 
 TARGET =$(DBNAME)@$(HOST):$(PORT)
 
 # Usual path for pg_config :
-# PG_CONFIG = pg_config
+ PG_CONFIG = pg_config
 # Or specific :
- PG_CONFIG = /usr/local/pgsql/bin/pg_config
+# PG_CONFIG = /usr/local/pgsql/bin/pg_config
 SHAREDIR = $(shell $(PG_CONFIG) --sharedir)
 
 all:  bin/Anelosimus.Eximius
