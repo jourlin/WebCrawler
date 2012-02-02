@@ -2,15 +2,18 @@
 ** HOW TO INSTALL **
 ********************
 
+0. If needed, install GNU/gcc and PostgreSQL in your O.S.
+you will also need the following packages : libecpg-dev, libcurl3-dev, postgresql-server-dev-9.1 (adapt to current versions if needed)
 1. Create a postgresql database
-2. Edit the first 5 lines 'makefile' to provide connection details to your DB
-3. Check if the 'pg_config' command exists. If not, change comment/uncomment the relevant
-lines in makefile.
+2. If you install the PostgreSQL server using a GNU/Linux distribution package, 
+the 'pg_config' command should work. If not, modify the relevant
+commented lines in "./makefile.uc" and "c/Makefile" 
+3. Execute "./configure.bash" and provide connection details to your DB
 4. Execute 'sudo make extensions' to extend Postgresql with the user-defined type 'url'
 5. Execute 'make CreateTables' to set up everything on the PG server.
 6. Execute 'make' to make an executable crawler.
 7. Insert the boot-strap URLs into table node, e.g. 
-INSERT INTO NODE (url, score) VALUES ('http://www.jourlin.com', 1.0);
+INSERT INTO NODE (url, score, depth) VALUES ('http://www.jourlin.com', 1, 0);
 ...
 8. Start a few processes : './bin/Anelosimus.Eximius &'
 Or 'nohup ./bin/Anelosimus.Eximius &' for a more robust process
