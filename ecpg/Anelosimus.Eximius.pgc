@@ -140,7 +140,7 @@ void drop_blanks(char *mem){
 		if(*pt)
 			*mem++=' ';
 	};
-	*mem=0;					// terminate the new, shortened string
+	*mem='\0';					// terminate the new, shortened string
 }
 
 
@@ -210,33 +210,22 @@ int getNextURL(bool reinit, int idx){
 				/* Find Right Context  */
 				/***********************/
 				
-				if(endmid!=NULL){
-					startright=strstr(endmid, ">");
-					if(startright!=NULL){ 
-						startright++;
-						endright=strstr(startright-1, "<");
-					}
+				startright=strstr(start, "/a>");
+				if(startright!=NULL){
+					startright+=3;
+					endright=strstr(startright, "<");
 				}
-				else
-					startright=NULL;
-				if(startright==NULL || endright==NULL || (endright-startright <1))
-					*LinkRightContext='\0';
-				else{
-					if(endright-startright<minlength){
-						minlength=endright-startright;
-						printf("New min right length : [%d]\n",minlength);
-					}
-					if(endright-startright>maxlength){
-						maxlength=endright-startright;
-						printf("New max right length : [%d]\n",maxlength);
-					}
-					if(endright-startright>=MAXCONTEXT) // trim
-						endright=startright+MAXCONTEXT -1;
-					if(endright-startright>0)
+				if(startright!=NULL && endright !=NULL){
+					endright--;
+					if(endright-startright>MAXCONTEXT)
+						endright=startright+MAXCONTEXT;
+					if(endright-startright>0){
 						memcpy(LinkRightContext, startright, (size_t) (endright-startright));
-					*(LinkRightContext+(size_t) (endright-startright))='\0';
+						*(LinkRightContext+(size_t) (endright-startright))='\0';
+					}
 					drop_blanks(LinkRightContext);
 				}
+				
 				
 			}
 			else
