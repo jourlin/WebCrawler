@@ -1,8 +1,8 @@
-USER = eric 
+USER = eric
 DBNAME = campagne-day-`date +"%Y-%m-%d"`
 HOST = localhost
 PORT = 5435
-PASSWORD= xxxxxx 
+PASSWORD= xxxxxx
 
 TARGET =$(DBNAME)@$(HOST):$(PORT)
 
@@ -44,11 +44,11 @@ init:
 	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME) -c "INSERT INTO node (url, score, depth) VALUES ('http://dev.termwatch.es/~jourlin/campagne/pagespolitiques.html', 1, 0)"
 
 launch: bin/Anelosimus.Eximius.daily
-	./bin/Anelosimus.Eximius.daily &
+	./bin/Anelosimus.Eximius.daily 6 &
 	sleep 10
-	./bin/Anelosimus.Eximius.daily &
+	./bin/Anelosimus.Eximius.daily 6 &
 	sleep 10
-	./bin/Anelosimus.Eximius.daily &
+	./bin/Anelosimus.Eximius.daily 6 &
 dropnewday: 
 	dropdb -U$(USER) -h$(HOST) -p$(PORT) $(DBNAME)
 createnewday: 
