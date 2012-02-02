@@ -296,7 +296,7 @@ void drop_content(char *mem, const char *tstart, const char *tend){
 	}while(1);
 }
 
-int main(void) {
+int main(int argc, char*argv[]) {
 	CURL *curl;
 	CURLcode res;
 	char *tmp;
@@ -308,12 +308,19 @@ int main(void) {
   	int M, Q, U;
   	fd_set R, W, E;
   	struct timeval T;
+	time_t rawtime;
+  	struct tm * timeinfo;
+	int EndHour=25;		// no automatic stop
 
 	pid_t pid;
 	if ((pid = getpid()) < 0) {
 	  perror("unable to get pid");
 	};
-	
+	printf("Starting...\n");
+	if(argc == 2){
+		EndHour=atoi(argv[1]); // get automatic stop hour from 1st arg
+		printf("Please note that the process will be stop at time %2d:00:00.\n", EndHour);
+	}
 
 	(void) signal(SIGINT,terminate);
 
@@ -322,6 +329,10 @@ int main(void) {
 //	exec sql connect to 'unix:postgresql:locahost' ;
 //	exec sql SET CLIENT_ENCODING TO 'UTF8'; 
 	while(1){
+		time (&rawtime );
+  		timeinfo=localtime(&rawtime);
+		if(timeinfo->tm_hour==EndHour)
+			break;
 		exec sql connect to :target USER :user USING :password;
 		checkErrorCode();
 		M=Q=U=-1; // re-init error flags
