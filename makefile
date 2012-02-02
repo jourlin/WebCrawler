@@ -1,8 +1,8 @@
-USER = hypolite
-DBNAME = campagne-012012
+USER = eric 
+DBNAME = campagne-day-`date +"%Y-%m-%d"`
 HOST = localhost
 PORT = 5435
-PASSWORD= TEST
+PASSWORD= xxxxxx 
 
 TARGET =$(DBNAME)@$(HOST):$(PORT)
 
@@ -12,9 +12,9 @@ TARGET =$(DBNAME)@$(HOST):$(PORT)
  PG_CONFIG = /usr/local/pgsql/bin/pg_config
 SHAREDIR = $(shell $(PG_CONFIG) --sharedir)
 
-all:  bin/Anelosimus.Eximius
+all:  bin/Anelosimus.Eximius.daily
 clean: 
-	rm bin/Anelosimus.Eximius
+	rm bin/Anelosimus.Eximius.daily
 	rm $(SHAREDIR)/extension/url.*
 
 extensions: $(SHAREDIR)/extension/url.sql  $(SHAREDIR)/extension/url.so
@@ -28,13 +28,31 @@ $(SHAREDIR)/extension/url.sql:	sql/url.sql
 c/url.so: c/url.c
 	echo $(SHAREDIR)
 	  cd c; make ; cd .. 
-CreateTables: $(SHAREDIR)/extension/url.sql sql/url.sql sql/CreateTables.sql 
-	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME) -W -f $(SHAREDIR)/extension/url.sql
-	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME) -W -f sql/CreateTables.sql 
+
+CreateTables:  sql/CreateTables.sql 
+	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME)  -f $(SHAREDIR)/extension/url.sql
+	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME)  -f sql/CreateTables.sql 
 bin: 
 	mkdir bin
-bin/Anelosimus.Eximius : bin ecpg/Anelosimus.Eximius.pgc 
+bin/Anelosimus.Eximius.daily : bin ecpg/Anelosimus.Eximius.pgc 
 	cd ecpg
 	ecpg -t -I/usr/include/postgresql -I/usr/include/curl ecpg/Anelosimus.Eximius.pgc
-	gcc -g -D_TARGET_=\"$(TARGET)\" -D_USER_=\"$(USER)\" -D_PASSWORD_=\"$(PASSWORD)\" -o bin/Anelosimus.Eximius -I /usr/include/postgresql/ ecpg/Anelosimus.Eximius.c -lecpg -lpq -lcurl
+	gcc -g -D_TARGET_=\"$(TARGET)\" -D_USER_=\"$(USER)\" -D_PASSWORD_=\"$(PASSWORD)\" -o bin/Anelosimus.Eximius.daily -I /usr/include/postgresql/ ecpg/Anelosimus.Eximius.c -lecpg -lpq -lcurl
+
+init:	
+	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME) -c "INSERT INTO node (url, score, depth) VALUES ('http://dev.termwatch.es/~jourlin/campagne/sitesdescandidats.html', 1, 0)"
+	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME) -c "INSERT INTO node (url, score, depth) VALUES ('http://dev.termwatch.es/~jourlin/campagne/pagespolitiques.html', 1, 0)"
+
+launch: bin/Anelosimus.Eximius.daily
+	./bin/Anelosimus.Eximius.daily &
+	sleep 10
+	./bin/Anelosimus.Eximius.daily &
+	sleep 10
+	./bin/Anelosimus.Eximius.daily &
+dropnewday: 
+	dropdb -U$(USER) -h$(HOST) -p$(PORT) $(DBNAME)
+createnewday: 
+	createdb -U$(USER) -h$(HOST) -p$(PORT) $(DBNAME)
+
+	
 

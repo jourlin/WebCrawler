@@ -1,3 +1,11 @@
+/* Processed by ecpg (4.5.0) */
+/* These include files are added by the preprocessor */
+#include <ecpglib.h>
+#include <ecpgerrno.h>
+#include <sqlca.h>
+/* End of automatic include section */
+
+#line 1 "ecpg/Anelosimus.Eximius.pgc"
 /* 
   Anelosimus.Eximius.pgc : This process gets a list of URLs from 
   the table "node", downloads them, inserts the new URLs into table node,
@@ -64,36 +72,172 @@
 #define MAXSMALLSTRING		512	// Max number of chars in top level domain
 #define MAXCONTEXT		100	// Max chars for hyperlinks context
 
-exec sql include sqlca;
-exec sql begin declare section;
-	struct MemoryStruct {
-		char *memory;
-		unsigned long int size;
-	};
-exec sql end declare section;
-exec sql begin declare section;
-	unsigned long int MaxPageSize=0;
-	int nurls;
-	struct MemoryStruct currentBody[MAXCO];
-	char currentURL[MAXURLSIZE];
-	char url_chunk[MAXCO][MAXURLSIZE];
-	unsigned long int url_id[MAXCO];
-	char url_enc[MAXCO][MAXSMALLSTRING];
-	char LinkLeftContext[MAXURLSIZE];
-	char LinkMidContext[MAXURLSIZE];
-	char LinkRightContext[MAXURLSIZE];
-	char currentRoot[MAXURLSIZE];
-	char currentRootURL[MAXURLSIZE];
-	char currentEffectiveURL[MAXURLSIZE];
-	char currentEncoding[MAXSMALLSTRING];
-	unsigned long int currentID;
-exec sql end declare section;
-EXEC SQL BEGIN DECLARE SECTION;
-const char *target = _TARGET_; // Data for connection if needed
-const char *user = _USER_;
-const char *password =_PASSWORD_;
 
-EXEC SQL END DECLARE SECTION;
+#line 1 "/usr/include/postgresql/sqlca.h"
+#ifndef POSTGRES_SQLCA_H
+#define POSTGRES_SQLCA_H
+
+#ifndef PGDLLIMPORT
+#if  defined(WIN32) || defined(__CYGWIN__)
+#define PGDLLIMPORT __declspec (dllimport)
+#else
+#define PGDLLIMPORT
+#endif   /* __CYGWIN__ */
+#endif   /* PGDLLIMPORT */
+
+#define SQLERRMC_LEN	150
+
+#ifdef __cplusplus
+extern		"C"
+{
+#endif
+
+struct sqlca_t
+{
+	char		sqlcaid[8];
+	long		sqlabc;
+	long		sqlcode;
+	struct
+	{
+		int			sqlerrml;
+		char		sqlerrmc[SQLERRMC_LEN];
+	}			sqlerrm;
+	char		sqlerrp[8];
+	long		sqlerrd[6];
+	/* Element 0: empty						*/
+	/* 1: OID of processed tuple if applicable			*/
+	/* 2: number of rows processed				*/
+	/* after an INSERT, UPDATE or				*/
+	/* DELETE statement					*/
+	/* 3: empty						*/
+	/* 4: empty						*/
+	/* 5: empty						*/
+	char		sqlwarn[8];
+	/* Element 0: set to 'W' if at least one other is 'W'	*/
+	/* 1: if 'W' at least one character string		*/
+	/* value was truncated when it was			*/
+	/* stored into a host variable.				*/
+
+	/*
+	 * 2: if 'W' a (hopefully) non-fatal notice occurred
+	 */	/* 3: empty */
+	/* 4: empty						*/
+	/* 5: empty						*/
+	/* 6: empty						*/
+	/* 7: empty						*/
+
+	char		sqlstate[5];
+};
+
+struct sqlca_t *ECPGget_sqlca(void);
+
+#ifndef POSTGRES_ECPG_INTERNAL
+#define sqlca (*ECPGget_sqlca())
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+
+#line 67 "ecpg/Anelosimus.Eximius.pgc"
+
+/* exec sql begin declare section */
+	  
+		 
+		   
+	
+struct MemoryStruct { 
+#line 70 "ecpg/Anelosimus.Eximius.pgc"
+ char * memory ;
+ 
+#line 71 "ecpg/Anelosimus.Eximius.pgc"
+ unsigned long size ;
+ } ;/* exec sql end declare section */
+#line 73 "ecpg/Anelosimus.Eximius.pgc"
+
+/* exec sql begin declare section */
+	   
+	 
+	  
+	 
+	 
+	   
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+	   
+
+#line 75 "ecpg/Anelosimus.Eximius.pgc"
+ unsigned long MaxPageSize = 0 ;
+ 
+#line 76 "ecpg/Anelosimus.Eximius.pgc"
+ int nurls ;
+ 
+#line 77 "ecpg/Anelosimus.Eximius.pgc"
+ struct MemoryStruct currentBody [ MAXCO ] ;
+ 
+#line 78 "ecpg/Anelosimus.Eximius.pgc"
+ char currentURL [ MAXURLSIZE ] ;
+ 
+#line 79 "ecpg/Anelosimus.Eximius.pgc"
+ char url_chunk [ MAXCO ] [ MAXURLSIZE ] ;
+ 
+#line 80 "ecpg/Anelosimus.Eximius.pgc"
+ unsigned long url_id [ MAXCO ] ;
+ 
+#line 81 "ecpg/Anelosimus.Eximius.pgc"
+ char url_enc [ MAXCO ] [ MAXSMALLSTRING ] ;
+ 
+#line 82 "ecpg/Anelosimus.Eximius.pgc"
+ char LinkLeftContext [ MAXURLSIZE ] ;
+ 
+#line 83 "ecpg/Anelosimus.Eximius.pgc"
+ char LinkMidContext [ MAXURLSIZE ] ;
+ 
+#line 84 "ecpg/Anelosimus.Eximius.pgc"
+ char LinkRightContext [ MAXURLSIZE ] ;
+ 
+#line 85 "ecpg/Anelosimus.Eximius.pgc"
+ char currentRoot [ MAXURLSIZE ] ;
+ 
+#line 86 "ecpg/Anelosimus.Eximius.pgc"
+ char currentRootURL [ MAXURLSIZE ] ;
+ 
+#line 87 "ecpg/Anelosimus.Eximius.pgc"
+ char currentEffectiveURL [ MAXURLSIZE ] ;
+ 
+#line 88 "ecpg/Anelosimus.Eximius.pgc"
+ char currentEncoding [ MAXSMALLSTRING ] ;
+ 
+#line 89 "ecpg/Anelosimus.Eximius.pgc"
+ unsigned long currentID ;
+/* exec sql end declare section */
+#line 90 "ecpg/Anelosimus.Eximius.pgc"
+
+/* exec sql begin declare section */
+     // Data for connection if needed
+    
+   
+
+
+#line 92 "ecpg/Anelosimus.Eximius.pgc"
+ const char * target = _TARGET_ ;
+ 
+#line 93 "ecpg/Anelosimus.Eximius.pgc"
+ const char * user = _USER_ ;
+ 
+#line 94 "ecpg/Anelosimus.Eximius.pgc"
+ const char * password = _PASSWORD_ ;
+/* exec sql end declare section */
+#line 96 "ecpg/Anelosimus.Eximius.pgc"
+
 
 void terminate(int sig);
 
@@ -268,8 +412,14 @@ static void init(CURLM *cm, int i, unsigned long header)
 
 
 void terminate(int sig) {
-	exec sql UPDATE node SET checked=NULL, effectiveurl=NULL WHERE url=:currentRootURL;
-	exec sql disconnect all;
+	{ ECPGdo(__LINE__, 0, 1, NULL, 0, ECPGst_normal, "update node set checked = null , effectiveurl = null where url = $1 ", 
+	ECPGt_char,(currentRootURL),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EOIT, ECPGt_EORT);}
+#line 271 "ecpg/Anelosimus.Eximius.pgc"
+
+	{ ECPGdisconnect(__LINE__, "ALL");}
+#line 272 "ecpg/Anelosimus.Eximius.pgc"
+
         printf("\nInterrupted ! Cancelling the crawl on %s\n", currentRootURL);
 	curl_global_cleanup();
         exit(sig);
@@ -333,31 +483,65 @@ int main(void) {
 //	exec sql connect to 'unix:postgresql:locahost' ;
 //	exec sql SET CLIENT_ENCODING TO 'UTF8'; 
 	while(1){
-		exec sql connect to :target USER :user USING :password;
+		{ ECPGconnect(__LINE__, 0, target , user , password , NULL, 1); }
+#line 336 "ecpg/Anelosimus.Eximius.pgc"
+
 		checkErrorCode();
 		M=Q=U=-1; // re-init error flags
-		EXEC SQL BEGIN WORK;
-		EXEC SQL PREPARE get_url FROM "SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND depth<4 AND score IS NOT NULL ORDER BY score DESC, url_len(url) ASC LIMIT 20 FOR UPDATE ;";
+		{ ECPGtrans(__LINE__, NULL, "begin work");}
+#line 339 "ecpg/Anelosimus.Eximius.pgc"
+
+		{ ECPGprepare(__LINE__, NULL, 0, "get_url", "SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND depth<4 AND score IS NOT NULL ORDER BY score DESC, url_len(url) ASC LIMIT 20 FOR UPDATE ;");}
+#line 340 "ecpg/Anelosimus.Eximius.pgc"
+
 		checkErrorCode();
-		EXEC SQL COMMIT WORK;
-		EXEC SQL BEGIN WORK;
-		EXEC SQL DECLARE url_cursor CURSOR FOR get_url;
+		{ ECPGtrans(__LINE__, NULL, "commit work");}
+#line 342 "ecpg/Anelosimus.Eximius.pgc"
+
+		{ ECPGtrans(__LINE__, NULL, "begin work");}
+#line 343 "ecpg/Anelosimus.Eximius.pgc"
+
+		/* declare url_cursor cursor for $1 */
+#line 344 "ecpg/Anelosimus.Eximius.pgc"
+
 		checkErrorCode();
 		/* when end of result set reached, break out of while loop */
-		EXEC SQL WHENEVER NOT FOUND DO BREAK;
+		/* exec sql whenever not found  break ; */
+#line 347 "ecpg/Anelosimus.Eximius.pgc"
+
 		checkErrorCode();
-		EXEC SQL OPEN url_cursor;
+		{ ECPGdo(__LINE__, 0, 1, NULL, 0, ECPGst_normal, "declare url_cursor cursor for $1", 
+	ECPGt_char_variable,(ECPGprepared_statement(NULL, "get_url", __LINE__)),(long)1,(long)1,(1)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EOIT, ECPGt_EORT);}
+#line 349 "ecpg/Anelosimus.Eximius.pgc"
+
 
 		checkErrorCode();
 		nburls=0;
 		while(1){
-			EXEC SQL FETCH NEXT FROM url_cursor INTO :currentRootURL, :currentID;
+			{ ECPGdo(__LINE__, 0, 1, NULL, 0, ECPGst_normal, "fetch next from url_cursor", ECPGt_EOIT, 
+	ECPGt_char,(currentRootURL),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, 
+	ECPGt_unsigned_long,&(currentID),(long)1,(long)1,sizeof(unsigned long), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EORT);
+#line 354 "ecpg/Anelosimus.Eximius.pgc"
+
+if (sqlca.sqlcode == ECPG_NOT_FOUND) break;}
+#line 354 "ecpg/Anelosimus.Eximius.pgc"
+
 			//printf("[%d] is processing %s\n", pid, currentRootURL );
 			checkErrorCode();
 			if(sqlca.sqlcode!=0){
 				break;
 			}
-			exec sql UPDATE node SET checked=now() WHERE id=:currentID;
+			{ ECPGdo(__LINE__, 0, 1, NULL, 0, ECPGst_normal, "update node set checked = now ( ) where id = $1 ", 
+	ECPGt_unsigned_long,&(currentID),(long)1,(long)1,sizeof(unsigned long), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EOIT, ECPGt_EORT);
+#line 360 "ecpg/Anelosimus.Eximius.pgc"
+
+if (sqlca.sqlcode == ECPG_NOT_FOUND) break;}
+#line 360 "ecpg/Anelosimus.Eximius.pgc"
+
 	                checkErrorCode();
 	                if(sqlca.sqlcode!=0){
 	                        break;
@@ -366,7 +550,9 @@ int main(void) {
 			url_id[nburls]=currentID;
 			nburls++;
 		}
-		EXEC SQL COMMIT WORK;
+		{ ECPGtrans(__LINE__, NULL, "commit work");}
+#line 369 "ecpg/Anelosimus.Eximius.pgc"
+
 		curl_global_init(CURL_GLOBAL_ALL);
 		cm = curl_multi_init();
 		for (C = 0; C < nburls; ++C) {
@@ -436,10 +622,23 @@ int main(void) {
 						if(strstr(ct, "utf-8")!=NULL || strstr(ct, "UTF-8")!=NULL)
 							strcpy(url_enc[nburls],"UTF8");
 						//printf("Warning : %ld[%s] for %s\n", nburls, url_enc[nburls], url_chunk[nburls]);
-                                                exec sql BEGIN WORK;
-						exec sql UPDATE node SET effectiveurl=:currentEffectiveURL WHERE url=:currentURL;
+                                                { ECPGtrans(__LINE__, NULL, "begin work");}
+#line 439 "ecpg/Anelosimus.Eximius.pgc"
+
+						{ ECPGdo(__LINE__, 0, 1, NULL, 0, ECPGst_normal, "update node set effectiveurl = $1  where url = $2 ", 
+	ECPGt_char,(currentEffectiveURL),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, 
+	ECPGt_char,(currentURL),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EOIT, ECPGt_EORT);
+#line 440 "ecpg/Anelosimus.Eximius.pgc"
+
+if (sqlca.sqlcode == ECPG_NOT_FOUND) break;}
+#line 440 "ecpg/Anelosimus.Eximius.pgc"
+
 						checkErrorCode();
-						exec SQL END WORK;
+						{ ECPGtrans(__LINE__, NULL, "end work");}
+#line 442 "ecpg/Anelosimus.Eximius.pgc"
+
 					}
 					curl_multi_remove_handle(cm, e);
 					curl_easy_cleanup(e);
@@ -527,8 +726,14 @@ int main(void) {
 			fprintf(stderr,"process %d is processing [%s], %d, encoding [%s]\n", pid, currentURL, C, url_enc[C]);
 			
   	 		while(getNextURL(FALSE, C)){
-				exec sql BEGIN WORK;
-				exec sql SET CLIENT_ENCODING TO :currentEncoding; 
+				{ ECPGtrans(__LINE__, NULL, "begin work");}
+#line 530 "ecpg/Anelosimus.Eximius.pgc"
+
+				{ ECPGdo(__LINE__, 0, 1, NULL, 0, ECPGst_normal, "set CLIENT_ENCODING to $0", 
+	ECPGt_char,(currentEncoding),(long)MAXSMALLSTRING,(long)1,(MAXSMALLSTRING)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EOIT, ECPGt_EORT);}
+#line 531 "ecpg/Anelosimus.Eximius.pgc"
+ 
 				if(strlen(currentURL)>1 && (currentURL[0]=='/'||currentURL[0]=='.'||currentURL[0]=='.')){
 
 					strcpy(currentRoot, currentRootURL);
@@ -540,10 +745,27 @@ int main(void) {
 				else
 					strcpy(currentRoot, currentURL);
 				if(strlen(currentRoot)>7 && (!strncmp(currentRoot, "http://",7) || !strncmp(currentRoot, "https://",8) || !strncmp(currentRoot, "ftp://",6) || !strncmp(currentRoot, "ftps://",7))){
-					exec sql INSERT INTO linksview ("from", "to", "leftcontext", "midcontext", "rightcontext") VALUES (:currentID, :currentRoot, :LinkLeftContext, :LinkMidContext, :LinkRightContext);			
+					{ ECPGdo(__LINE__, 0, 1, NULL, 0, ECPGst_normal, "insert into linksview ( \"from\" , \"to\" , \"leftcontext\" , \"midcontext\" , \"rightcontext\" ) values ( $1  , $2  , $3  , $4  , $5  )", 
+	ECPGt_unsigned_long,&(currentID),(long)1,(long)1,sizeof(unsigned long), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, 
+	ECPGt_char,(currentRoot),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, 
+	ECPGt_char,(LinkLeftContext),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, 
+	ECPGt_char,(LinkMidContext),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, 
+	ECPGt_char,(LinkRightContext),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EOIT, ECPGt_EORT);
+#line 543 "ecpg/Anelosimus.Eximius.pgc"
+
+if (sqlca.sqlcode == ECPG_NOT_FOUND) break;}
+#line 543 "ecpg/Anelosimus.Eximius.pgc"
+			
 					checkErrorCode();
 				}
-				exec SQL END WORK;
+				{ ECPGtrans(__LINE__, NULL, "end work");}
+#line 546 "ecpg/Anelosimus.Eximius.pgc"
+
 					
 			}
 			//printf("Done.\n");
@@ -557,10 +779,23 @@ int main(void) {
 				drop_content(currentBody[C].memory, "<style ", "</style>");
 				xhtml2text(currentBody[C].memory);
 				drop_blanks(currentBody[C].memory);
-				exec sql BEGIN WORK;
-				exec sql UPDATE node SET content=:currentBody[C].memory WHERE url=:url_chunk[C];
+				{ ECPGtrans(__LINE__, NULL, "begin work");}
+#line 560 "ecpg/Anelosimus.Eximius.pgc"
+
+				{ ECPGdo(__LINE__, 0, 1, NULL, 0, ECPGst_normal, "update node set content = $1  where url = $2 ", 
+	ECPGt_char,&(currentBody[C].memory),(long)0,(long)1,(1)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, 
+	ECPGt_char,(url_chunk[C]),(long)MAXURLSIZE,(long)1,(MAXURLSIZE)*sizeof(char), 
+	ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EOIT, ECPGt_EORT);
+#line 561 "ecpg/Anelosimus.Eximius.pgc"
+
+if (sqlca.sqlcode == ECPG_NOT_FOUND) break;}
+#line 561 "ecpg/Anelosimus.Eximius.pgc"
+
 				checkErrorCode();
-				exec SQL END WORK;
+				{ ECPGtrans(__LINE__, NULL, "end work");}
+#line 563 "ecpg/Anelosimus.Eximius.pgc"
+
 			}
 			//printf("Content of %s:\n [%s]\n", url_chunk[C], currentBody[C].memory);
 			if(currentBody[C].memory){
@@ -570,7 +805,9 @@ int main(void) {
   		}
 		curl_multi_cleanup(cm);
 		curl_global_cleanup();
-		exec sql disconnect all;	
+		{ ECPGdisconnect(__LINE__, "ALL");}
+#line 573 "ecpg/Anelosimus.Eximius.pgc"
+	
 	}
 	return EXIT_SUCCESS;
 }
