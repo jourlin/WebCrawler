@@ -17,7 +17,7 @@ clean:
 	rm bin/Anelosimus.Eximius
 	rm $(SHAREDIR)/extension/url.*
 
-extensions: $(SHAREDIR)/extension/url.sql  $(SHAREDIR)/extension/url.so
+extensions: $(SHAREDIR)/extension/url.sql  $(SHAREDIR)/extension/url.so CreateTablesType
 		
 $(SHAREDIR)/extension/url.so:	c/url.so
 	cp c/url.so $(SHAREDIR)/extension/url.so
@@ -28,8 +28,9 @@ $(SHAREDIR)/extension/url.sql:	sql/url.sql
 c/url.so: c/url.c
 	echo $(SHAREDIR)
 	  cd c; make ; cd .. 
-CreateTables: $(SHAREDIR)/extension/url.sql sql/url.sql sql/CreateTables.sql 
+CreateTablesType : $(SHAREDIR)/extension/url.sql sql/url.sql 
 	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME) -W -f $(SHAREDIR)/extension/url.sql
+CreateTables: sql/CreateTables.sql 
 	psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME) -W -f sql/CreateTables.sql 
 bin: 
 	mkdir bin

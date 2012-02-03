@@ -18,5 +18,9 @@ INSERT INTO NODE (url, score, depth) VALUES ('http://www.jourlin.com', 1, 0);
 8. Start a few processes : './bin/Anelosimus.Eximius &'
 Or 'nohup ./bin/Anelosimus.Eximius &' for a more robust process
 Or './bin/Anelosimus.Eximius >& /dev/null &' to get rid of logs.
+Or './bin/Anelosimus.Eximius -start "2012-02-03 17:00:00"'
+Or './bin/Anelosimus.Eximius -stop "2012-02-03 17:00:00"'
+Or './bin/Anelosimus.Eximius -start "2012-02-03 17:00:00" -stop "2012-02-03 18:00:00"'
+etc.
 
 

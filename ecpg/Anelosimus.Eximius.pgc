@@ -296,6 +296,10 @@ void drop_content(char *mem, const char *tstart, const char *tend){
 	}while(1);
 }
 
+void ErrorUsage(char *progname){
+	printf("Usage : %s [-start \"YYYY-MM-DD HH:MM:SS\"] [-stop \"YYYY-MM-DD HH:MM:SS]\"\n", progname);
+	exit(-1);
+}
 int main(int argc, char*argv[]) {
 	CURL *curl;
 	CURLcode res;
@@ -305,33 +309,58 @@ int main(int argc, char*argv[]) {
   	CURLMsg *msg;
   	long nburls, L;
   	unsigned int C=0;
-  	int M, Q, U;
+  	int a=0, M, Q, U;
   	fd_set R, W, E;
   	struct timeval T;
-	time_t rawtime;
-  	struct tm * timeinfo;
-	int EndHour=25;		// no automatic stop
+	time_t now, starttime=-1, stoptime=-1;
+  	struct tm *timeinfo;
+	struct tm timein;
 
 	pid_t pid;
 	if ((pid = getpid()) < 0) {
 	  perror("unable to get pid");
 	};
 	printf("Starting...\n");
-	if(argc == 2){
-		EndHour=atoi(argv[1]); // get automatic stop hour from 1st arg
-		printf("Please note that the process will be stop at time %2d:00:00.\n", EndHour);
+	if(argc > 5)
+		ErrorUsage(argv[0]);
+	timein.tm_isdst=0;
+	while(a<argc-1){
+		++a;
+		if(strcmp(argv[a], "-start")==0){
+			if(++a>argc)
+				ErrorUsage(argv[0]);
+			sscanf(argv[a], "%d-%d-%d %d:%d:%d", &timein.tm_year, &timein.tm_mon, &timein.tm_mday, &timein.tm_hour, &timein.tm_min, &timein.tm_sec);
+			timein.tm_year-=1900;
+			timein.tm_mon--;
+			if((starttime=mktime(&timein))==-1)
+				ErrorUsage(argv[0]);
+			printf("Crawl will start on %s", asctime(localtime(&starttime)));			
+		}
+		else if (strcmp(argv[a], "-stop")==0){
+			if(++a>argc)
+				ErrorUsage(argv[0]);
+			sscanf(argv[a], "%d-%d-%d %d:%d:%d", &timein.tm_year, &timein.tm_mon, &timein.tm_mday, &timein.tm_hour, &timein.tm_min, &timein.tm_sec);
+			timein.tm_year-=1900;
+			timein.tm_mon--;
+			if((stoptime=mktime(&timein))==-1)
+				ErrorUsage(argv[0]);
+			printf("Crawl will stop  on %s", asctime(localtime(&stoptime)));	
+		}
+		else
+			ErrorUsage(argv[0]);
 	}
-
 	(void) signal(SIGINT,terminate);
 
 // 	uncomment the following line if you need database details for the connection
 // 	if no details are needed, simply do :
 //	exec sql connect to 'unix:postgresql:locahost' ;
 //	exec sql SET CLIENT_ENCODING TO 'UTF8'; 
+	time(&now );
+	if(starttime!=-1 && difftime(starttime,now)>0) // Has to sleep for a while
+		sleep((int) difftime(starttime,now));
 	while(1){
-		time (&rawtime );
-  		timeinfo=localtime(&rawtime);
-		if(timeinfo->tm_hour==EndHour)
+		time(&now );
+		if(stoptime!=-1 && difftime(stoptime,now)<0) // Stop when stop time is reached
 			break;
 		exec sql connect to :target USER :user USING :password;
 		checkErrorCode();

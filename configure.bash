@@ -9,7 +9,8 @@ read PORT
 echo "Type your PostgreSQL user name, followed by [ENTER]:"
 read USER
 echo "Type your PostgreSQL password, followed by [ENTER]:"
-read PASSWD
+read -s PASSWD
 
 sed "s:__USER__:"$USER":" makefile.uc |sed "s:__DB__:"$DB":"|sed "s:__HOST__:"$HOST":"|sed "s:__PORT__:"$PORT":"|sed "s:__PASSWD__:"$PASSWD":" > makefile
+chmod 700 makefile
 
