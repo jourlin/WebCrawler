@@ -91,7 +91,6 @@ exec sql end declare section;
 EXEC SQL BEGIN DECLARE SECTION;
 const char *target = _TARGET_; // Data for connection if needed
 const char *user = _USER_;
-const char *password =_PASSWORD_;
 
 EXEC SQL END DECLARE SECTION;
 
@@ -363,7 +362,7 @@ int main(int argc, char*argv[]) {
 		time(&now );
 		if(stoptime!=-1 && difftime(stoptime,now)<0) // Stop when stop time is reached
 			break;
-		exec sql connect to :target USER :user USING :password;
+		exec sql connect to :target USER :user;
 		checkErrorCode();
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;

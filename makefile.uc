@@ -2,7 +2,6 @@ USER = __USER__
 DBNAME = __DB__
 HOST = __HOST__
 PORT = __PORT__
-PASSWORD= __PASSWD__
 
 TARGET =$(DBNAME)@$(HOST):$(PORT)
 
@@ -37,5 +36,5 @@ bin:
 bin/Anelosimus.Eximius : bin ecpg/Anelosimus.Eximius.pgc 
 	cd ecpg
 	ecpg -t -I/usr/include/postgresql -I/usr/include/curl ecpg/Anelosimus.Eximius.pgc
-	gcc -g -D_TARGET_=\"$(TARGET)\" -D_USER_=\"$(USER)\" -D_PASSWORD_=\"$(PASSWORD)\" -o bin/Anelosimus.Eximius -I /usr/include/postgresql/ ecpg/Anelosimus.Eximius.c -lecpg -lpq -lcurl
+	gcc -g -D_TARGET_=\"$(TARGET)\" -D_USER_=\"$(USER)\" -o bin/Anelosimus.Eximius -I /usr/include/postgresql/ ecpg/Anelosimus.Eximius.c -lecpg -lpq -lcurl
 
