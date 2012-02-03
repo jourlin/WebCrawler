@@ -8,19 +8,19 @@ you will also need the following packages : libecpg-dev, libcurl3-dev, postgresq
 (this file is described in http://www.postgresql.org/docs/9.1/static/libpq-pgpass.html
 2. If you install the PostgreSQL server using a GNU/Linux distribution package, 
 the 'pg_config' command should work. If not, modify the relevant
-commented lines in "./makefile.uc" and "c/Makefile" 
+commented lines in "./makefile" and "c/Makefile" 
 3. Execute 'sudo make extensions' to extend Postgresql with the user-defined type 'url'
 4. Execute 'make CreateTables' to set up everything on the PG server.
 5. Execute 'make' to make an executable crawler.
 6. Insert the boot-strap URLs into table node, e.g. 
 INSERT INTO NODE (url, score, depth) VALUES ('http://www.jourlin.com', 1, 0);
 ...
-7. Start a few processes : './bin/Anelosimus.Eximius &'
-Or 'nohup ./bin/Anelosimus.Eximius &' for a more robust process
-Or './bin/Anelosimus.Eximius >& /dev/null &' to get rid of logs.
-Or './bin/Anelosimus.Eximius -start "2012-02-03 17:00:00"'
-Or './bin/Anelosimus.Eximius -stop "2012-02-03 17:00:00"'
-Or './bin/Anelosimus.Eximius -start "2012-02-03 17:00:00" -stop "2012-02-03 18:00:00"'
+7. Start a few processes : './bin/Anelosimus.Eximius user dbname@host:port &'
+Or 'nohup ./bin/Anelosimus.Eximius user dbname@host:port &' for a more robust process
+Or './bin/Anelosimus.Eximius user dbname@host:port >& /dev/null &' to get rid of logs.
+Or './bin/Anelosimus.Eximius user dbname@host:port -start "2012-02-03 17:00:00"'
+Or './bin/Anelosimus.Eximius user dbname@host:port -stop "2012-02-03 17:00:00"'
+Or './bin/Anelosimus.Eximius user dbname@host:port -start "2012-02-03 17:00:00" -stop "2012-02-03 18:00:00"'
 etc.
 
 

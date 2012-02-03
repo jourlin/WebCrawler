@@ -87,11 +87,8 @@ exec sql begin declare section;
 	char currentEffectiveURL[MAXURLSIZE];
 	char currentEncoding[MAXSMALLSTRING];
 	unsigned long int currentID;
-exec sql end declare section;
-EXEC SQL BEGIN DECLARE SECTION;
-const char *target = _TARGET_; // Data for connection if needed
-const char *user = _USER_;
-
+	char pgtarget[] = "********************************************************************************************";
+	char pguser[] =   "********************************************************************************************";
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -297,7 +294,7 @@ void drop_content(char *mem, const char *tstart, const char *tend){
 }
 
 void ErrorUsage(char *progname){
-	printf("Usage : %s [-start \"YYYY-MM-DD HH:MM:SS\"] [-stop \"YYYY-MM-DD HH:MM:SS]\"\n", progname);
+	printf("Usage : %s user dbname@host:port [-start \"YYYY-MM-DD HH:MM:SS\"] [-stop \"YYYY-MM-DD HH:MM:SS]\"\n", progname);
 	exit(-1);
 }
 int main(int argc, char*argv[]) {
@@ -309,7 +306,7 @@ int main(int argc, char*argv[]) {
   	CURLMsg *msg;
   	long nburls, L;
   	unsigned int C=0;
-  	int a=0, M, Q, U;
+  	int a=2, M, Q, U;
   	fd_set R, W, E;
   	struct timeval T;
 	time_t now, starttime=-1, stoptime=-1;
@@ -320,9 +317,11 @@ int main(int argc, char*argv[]) {
 	if ((pid = getpid()) < 0) {
 	  perror("unable to get pid");
 	};
+	if(argc<3 || argc >7)
+		ErrorUsage(argv[0]);	
 	printf("Starting...\n");
-	if(argc > 5)
-		ErrorUsage(argv[0]);
+	strcpy(pguser, argv[1]);
+	strcpy(pgtarget, argv[2]);
 	timein.tm_isdst=0;
 	while(a<argc-1){
 		++a;
@@ -362,7 +361,7 @@ int main(int argc, char*argv[]) {
 		time(&now );
 		if(stoptime!=-1 && difftime(stoptime,now)<0) // Stop when stop time is reached
 			break;
-		exec sql connect to :target USER :user;
+		exec sql connect to :pgtarget USER :pguser;
 		checkErrorCode();
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
