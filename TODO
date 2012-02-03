@@ -1,2 +1,4 @@
 - User's password in a protected file (e.g. .pgpass)
 - Clean terminated sockets
+- Use a strategy catalog
+
