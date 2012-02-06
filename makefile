@@ -1,4 +1,4 @@
-include ./webcrawler.cfg
+include ./webcrawler.sample.cfg
 # Usual path for pg_config :
 PG_CONFIG = pg_config
 # Or specific :
