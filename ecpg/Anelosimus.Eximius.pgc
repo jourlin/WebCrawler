@@ -60,9 +60,16 @@
 #include <signal.h>
 
 #define MAXURLSIZE		1023 /* should be less than max chars for type url */
-#define MAXCO			21	// Max parrallel connections
 #define MAXSMALLSTRING		512	// Max number of chars in top level domain
 #define MAXCONTEXT		100	// Max chars for hyperlinks context
+
+#ifndef MAXCO
+#define MAXCO			21	// Max parrallel connections
+#endif
+
+#ifndef ___FETCH___
+#define ___FETCH___		"SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND depth<6 AND score IS NOT NULL ORDER BY score DESC, url_len(url) ASC LIMIT 20 FOR UPDATE ;"
+#endif
 
 exec sql include sqlca;
 exec sql begin declare section;
@@ -89,6 +96,7 @@ exec sql begin declare section;
 	unsigned long int currentID;
 	char pgtarget[] = "********************************************************************************************";
 	char pguser[] =   "********************************************************************************************";
+	const char *fetchquery = ___FETCH___ ;
 EXEC SQL END DECLARE SECTION;
 
 void terminate(int sig);
@@ -365,7 +373,7 @@ int main(int argc, char*argv[]) {
 		checkErrorCode();
 		M=Q=U=-1; // re-init error flags
 		EXEC SQL BEGIN WORK;
-		EXEC SQL PREPARE get_url FROM "SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND depth<6 AND score IS NOT NULL ORDER BY score DESC, url_len(url) ASC LIMIT 20 FOR UPDATE ;";
+		EXEC SQL PREPARE get_url FROM :fetchquery ;	// SQL SELECT QUERY in #define
 		checkErrorCode();
 		EXEC SQL COMMIT WORK;
 		EXEC SQL BEGIN WORK;

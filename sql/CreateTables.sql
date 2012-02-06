@@ -67,7 +67,6 @@ END IF;
 
 -- Calculate score relating to citation context
 
-new_score=0;
 context ='';
 IF NEW.leftcontext IS NOT NULL THEN 
     context = context || NEW.leftcontext;
@@ -79,51 +78,7 @@ IF NEW.rightcontext IS NOT NULL THEN
     context = context || NEW.rightcontext;
 END IF;
 
-IF (substring(normalize(context), 'hollande') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'le pen') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'de villepin') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'joly') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'melanchon') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'sarkozy') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'dupont-aignan') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'bayrou') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'chevenement') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'morin') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'lepage') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'nihous') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'boutin') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'poutou') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
-IF (substring(normalize(context), 'arthaud') IS NOT NULL) THEN
-new_score = new_score +1;
-END IF;
+new_score = ScoreLink(context);
 
 IF new_score > 0 THEN
     UPDATE node SET score=score+new_score WHERE url=NEW."to";
@@ -137,83 +92,6 @@ CREATE TRIGGER linksview_insert
     INSTEAD OF INSERT ON linksview
     FOR EACH ROW
     EXECUTE PROCEDURE linksview_insert_row();
-
-CREATE OR REPLACE FUNCTION ScoreURL(url url) RETURNS bigint AS 
-$$
-DECLARE
-score INT;
-normurl TEXT;
-BEGIN
-normurl=normalize(CAST(url AS text));
-
-IF CAST(url_top(url) AS TEXT) ='fr' THEN
-	score=1;
-ELSE
-	score=0;
-END IF;
-IF substring(normurl, 'hollande') IS NOT NULL THEN
-	score=score+1;
-END IF;
-IF substring(normurl, 'lepen') IS NOT NULL OR substring(normurl, 'le-pen') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'villepin') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'joly') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'melanchon') IS NOT NULL OR substring(normurl, 'm%e8lanchon') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'sarkozy') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'dupontaignan') IS NOT NULL OR substring(normurl, 'dupont-aignan') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'bayrou') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'chevenement') IS NOT NULL OR substring(normurl, 'chev%e8nement') IS NOT NULL  THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'morin') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'lepage') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'nihous') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'boutin') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'poutou') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-IF substring(normurl, 'arthaud') IS NOT NULL THEN
-	score=score+1;
-END IF;
-
-
-RETURN score;
-END;
-$$ LANGUAGE plpgsql;
 
 CREATE TEXT SEARCH CONFIGURATION public.pg ( COPY = pg_catalog.simple); 
 CREATE TEXT SEARCH DICTIONARY scratch (TEMPLATE = simple);
