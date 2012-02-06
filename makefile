@@ -1,12 +1,4 @@
-USER = hypolite
-HOST = localhost
-PORT = 5432
-DBNAME = webcrawler
-FETCHQUERY = \"SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND depth<6 AND score IS NOT NULL ORDER BY score DESC, url_len(url) ASC LIMIT 20 FOR UPDATE ;\"
-MAXCO = 21
-SCORING = ./sql/Scoring.sample.sql
-INITIALURLS = ./sql/initialurls.sample.txt
-
+include ./webcrawler.cfg
 # Usual path for pg_config :
 PG_CONFIG = pg_config
 # Or specific :

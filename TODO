@@ -1,2 +1,3 @@
-- Use a strategy catalog
-- Use a file that contains initial URLs
+- move webcrawler.cfg in user's home directory
+- provide a .deb package
+- provide a debian/ubuntu repository
