@@ -1,9 +1,8 @@
-include ./webcrawler.sample.cfg
-# Usual path for pg_config :
-PG_CONFIG = pg_config
-# Or specific :
-# PG_CONFIG = /usr/local/pgsql/bin/pg_config
-SHAREDIR = $(shell $(PG_CONFIG) --sharedir)
+# If ~/.anelosimus does not exists
+# You might want to copy the sample config by executing :
+# mkdir ~/.anelosimus; cp cfg/* ~/.anelosimus
+
+include ~/.anelosimus/webcrawler.cfg 
 
 all:  bin/Anelosimus.Eximius
 clean:  DropDataBase

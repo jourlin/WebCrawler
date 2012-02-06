@@ -13,12 +13,9 @@
 #
 #-------------------------------------------------------------------------
 
-MODULES = url 
+include ~/.anelosimus/webcrawler.cfg
 
-# Usual path for pg_config :
- PG_CONFIG = pg_config
-# Specific path for our 9.1 server :
-#PG_CONFIG = /usr/local/pgsql/bin/pg_config
+MODULES = url 
 
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)

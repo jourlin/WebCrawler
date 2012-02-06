@@ -4,10 +4,12 @@
 
 0. If needed, install GNU/gcc and PostgreSQL in your O.S.
 you will also need the following packages : libecpg-dev, libcurl3-dev, postgresql-server-dev-9.1 (adapt to current versions if needed)
-1. Edit lines 1-8 of makefile to provide your own configuration
+1. If you do not have previously created a .anelosimus directory in your home directory,
+execute "mkdir ~/.anelosimus; cp cfg/* ~/.anelosimus" and provide database details in 
+~/.anelosimus/.webcrawler.cfg
 2. If you install the PostgreSQL server using a GNU/Linux distribution package, 
 the 'pg_config' command should work. If not, modify the relevant
-commented lines in "./makefile" and "c/Makefile" 
+commented lines in "~/.anelosimus/.webcrawler.cfg" 
 3. Add connection details in ~/.pgpass (this file is described in http://www.postgresql.org/docs/9.1/static/libpq-pgpass.html
 4. Execute 'sudo make extensions' to extend Postgresql with the user-defined type 'url'
 5. Execute 'make CreateDatabase'
