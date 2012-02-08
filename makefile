@@ -16,7 +16,7 @@ extensions: $(SHAREDIR)/extension/url.sql  $(SHAREDIR)/extension/url.so
 $(SHAREDIR)/extension/url.so:	c/url.so
 	cp c/url.so $(SHAREDIR)/extension/url.so
 	chown postgres.postgres $(SHAREDIR)/extension/url.so
-$(SHAREDIR)/extension/url.sql:	sql/url.sql
+$(SHAREDIR)/extension/url.sql:	
 	sed "s:_OBJWD_:"$(SHAREDIR)"/extension:g" sql/url.sql > $(SHAREDIR)/extension/url.sql
 	chown postgres.postgres $(SHAREDIR)/extension/url.sql
 c/url.so: c/url.c
