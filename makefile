@@ -2,7 +2,7 @@
 # You might want to copy the sample config by executing :
 # mkdir ~/.anelosimus; cp cfg/* ~/.anelosimus
 
-include ~/.anelosimus/webcrawler.cfg 
+include ~/.anelosimus-month04/webcrawler.cfg 
 
 all:  bin/Anelosimus.Eximius
 clean:  DropDataBase
