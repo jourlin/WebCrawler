@@ -55,17 +55,14 @@
 #ifndef WIN32
 #include <unistd.h>
 #endif
-#include <curl/multi.h>
+
 #include <sys/types.h> 
 #include <signal.h>
+#include <time.h>
 
 #define MAXURLSIZE		1023 /* should be less than max chars for type url */
 #define MAXSMALLSTRING		512	// Max number of chars in top level domain
 #define MAXCONTEXT		100	// Max chars for hyperlinks context
-
-#ifndef MAXCO
-#define MAXCO			21	// Max parrallel connections
-#endif
 
 #ifndef ___FETCH___
 #define ___FETCH___		"SELECT url_out(url) as url, id FROM node WHERE checked IS NULL AND depth<6 AND score IS NOT NULL ORDER BY score DESC, url_len(url) ASC LIMIT 20 FOR UPDATE ;"
@@ -81,17 +78,16 @@ exec sql end declare section;
 exec sql begin declare section;
 	unsigned long int MaxPageSize=0;
 	int nurls;
-	struct MemoryStruct currentBody[MAXCO];
+
 	char currentURL[MAXURLSIZE];
-	char url_chunk[MAXCO][MAXURLSIZE];
-	unsigned long int url_id[MAXCO];
-	char url_enc[MAXCO][MAXSMALLSTRING];
+	char *webpage;
 	char LinkLeftContext[MAXURLSIZE];
 	char LinkMidContext[MAXURLSIZE];
 	char LinkRightContext[MAXURLSIZE];
 	char currentRoot[MAXURLSIZE];
 	char currentRootURL[MAXURLSIZE];
 	char currentEffectiveURL[MAXURLSIZE];
+	char currentContentType[MAXSMALLSTRING];
 	char currentEncoding[MAXSMALLSTRING];
 	unsigned long int currentID;
 	char pgtarget[] = "********************************************************************************************";
@@ -117,23 +113,6 @@ void checkErrorCode(void){
 }
 
 
-size_t curl_write( void *ptr, size_t size, size_t nmemb, void *userdata)
-{	
-	struct MemoryStruct *mem= &currentBody[(long int) userdata];
-	mem->memory=realloc(mem->memory, ((size_t) mem->size+1) + size*nmemb); // extend memory
-	
-	if(mem->memory==NULL){
-   		 /* out of memory! */ 
-    		printf("not enough memory (realloc returned NULL)\n");
-    		exit(EXIT_FAILURE);
-  	}
-	memcpy(&(mem->memory[mem->size]), ptr, size*nmemb);
-	mem->size+=(unsigned long int) (size*nmemb);
-	mem->memory[mem->size] = 0;
-	return size*nmemb;
-}
-
-
 void drop_blanks(char *mem){
 	char *pt=mem;
 	while(*pt!=0){				// parse until the end of string
@@ -148,7 +127,13 @@ void drop_blanks(char *mem){
 }
 
 
-int getNextURL(bool reinit, int idx){
+int getNextURL(bool reinit, char *url){
+	static char command[MAXURLSIZE+100];
+	static FILE *currentURLfile;
+	static char *tmp;
+	long len;
+
+	
 	static const char *tag="href=\"";
 	static char *start;
 	static int minlength=65535, maxlength=-1;
@@ -157,7 +142,20 @@ int getNextURL(bool reinit, int idx){
 	*LinkRightContext='\0';
 
 	if(reinit){
-		start=currentBody[idx].memory;
+		strcpy(command, "wget -q -O- ");
+		strcat(command, url);
+		currentURLfile=popen(command, "r");
+		webpage=malloc(MAXURLSIZE);
+		tmp=webpage;
+		len=0;
+		while ( fgets(tmp, MAXURLSIZE, currentURLfile)){
+			len+=strlen(tmp);
+			webpage=realloc(webpage, len+MAXURLSIZE);
+			tmp=webpage+len;
+		}
+		printf("Got %ld characters\n", len);
+		fclose(currentURLfile);
+		start=webpage;
 		return TRUE;
 	}
 	char *end=start;
@@ -180,10 +178,10 @@ int getNextURL(bool reinit, int idx){
 				/*********************/
 				
 				startleft=start; // On href=
-				while((startleft >=currentBody[idx].memory) &&  (*startleft!='<'))
+				while((startleft >=webpage) &&  (*startleft!='<'))
 					startleft--; // Find the origin of the <A tag
 				endleft=startleft;   // End of left context
-				while((startleft >=currentBody[idx].memory) && ((endleft-startleft) < MAXCONTEXT) 
+				while((startleft >=webpage) && ((endleft-startleft) < MAXCONTEXT) 
 					&& (*startleft!='>') && (*startleft!='\n'))
 					startleft--; // Find the origin of the <A tag
 				if(endleft-startleft>1){
@@ -240,33 +238,10 @@ int getNextURL(bool reinit, int idx){
 	return (start!=NULL);
 }
 
-static void init(CURLM *cm, int i, unsigned long header)
-{
-  CURL *eh = curl_easy_init();
-  
-  curl_easy_setopt(eh, CURLOPT_URL, url_chunk[i]);
-  curl_easy_setopt(eh, CURLOPT_FOLLOWLOCATION, 1);
-  curl_easy_setopt(eh, CURLOPT_MAXREDIRS, -1);
-  curl_easy_setopt(eh, CURLOPT_WRITEFUNCTION, curl_write);
-  curl_easy_setopt(eh, CURLOPT_WRITEDATA, (void *) (long int) i);
-  curl_easy_setopt(eh, CURLOPT_HEADER, header);
-  curl_easy_setopt(eh, CURLOPT_NOBODY, header);
-  curl_easy_setopt(eh, CURLOPT_TIMEOUT, 240L); 
-  curl_easy_setopt(eh, CURLOPT_PRIVATE, i);
-  curl_easy_setopt(eh, CURLOPT_VERBOSE, 0L);
-  curl_easy_setopt(eh, CURLOPT_FORBID_REUSE, true);
-  curl_easy_setopt(eh, CURLOPT_DNS_CACHE_TIMEOUT, 48*60*60); // 48h 
-  curl_easy_setopt(eh, CURLOPT_COOKIEFILE, "");
-  curl_multi_add_handle(cm, eh);
-}
-
-
-
 void terminate(int sig) {
 	exec sql UPDATE node SET checked=NULL, effectiveurl=NULL WHERE url=:currentRootURL;
 	exec sql disconnect all;
         printf("\nInterrupted ! Cancelling the crawl on %s\n", currentRootURL);
-	curl_global_cleanup();
         exit(sig);
 }
 
@@ -306,23 +281,101 @@ void ErrorUsage(char *progname){
 	printf("Usage : %s user dbname@host:port [-start \"YYYY-MM-DD HH:MM:SS\"] [-stop \"YYYY-MM-DD HH:MM:SS]\"\n", progname);
 	exit(-1);
 }
-int main(int argc, char*argv[]) {
-	CURL *curl;
-	CURLcode res;
-	char *tmp;
 
-	CURLM *cm;
-  	CURLMsg *msg;
-  	long nburls, L;
-  	unsigned int C=0;
-  	int a=2, M, Q, U;
-  	fd_set R, W, E;
+int GetEffectiveURL(char *out, char *in)
+{
+  	FILE *currentURLfile;
+	static char command[MAXURLSIZE+100];
+	static char Line[MAXURLSIZE+500];
+	char *start, *end;
+
+	strcpy(command, "wget -nv --spider ");
+	strcat(command, in);
+	strcat(command, " 2>&1"); /* Redirect everything to stdout */
+	currentURLfile=popen(command, "r");
+	if(currentURLfile==NULL){ 
+		pclose(currentURLfile);	
+		return -1;
+	}
+	fgets(Line, MAXURLSIZE+200, currentURLfile);
+	pclose(currentURLfile);	
+	if(Line==NULL)
+		return -2;
+	start=strstr(Line, "URL: ");
+	if(start==NULL)
+		return -3;
+	start+=5; 		/* effective URL starting character */
+	for(end=start; *end!='\0' && *end!=' '; end++); /* end points either on the end of URL or on the end of line */
+	if(*end=='\0')
+		return -4;
+	*end='\0';
+	strcpy(out, start); 	/* Copy the effective URL */
+	return 0;		/* Success */
+}
+
+int GetHeader(char *ctype, char *encoding, char *in)
+{
+  	FILE *currentURLfile;
+	static char command[MAXURLSIZE+100];
+	static char Line[MAXURLSIZE+500];
+	char *start, *end;
+
+	strcpy(command, "wget --server-response --spider ");
+	strcat(command, in);
+	strcat(command, " 2>&1"); /* Redirect everything to stdout */
+
+	currentURLfile=popen(command, "r");
+	if(currentURLfile==NULL){ 
+		pclose(currentURLfile);	
+		return -1;
+	}
+	while((fgets(Line, MAXURLSIZE+200, currentURLfile) !=NULL) && (strstr(Line, "Content-Type: ")==NULL)) ;
+	pclose(currentURLfile);	
+	if(Line==NULL)
+		return -2;
+
+	start=strstr(Line, "Content-Type: ");
+	if(start==NULL)
+		return -3;
+	start+=14; 		/* content-type starting character */
+	for(end=start; *end!='\0' && *end!=' ' && *end!='\n'&& *end!=';'; end++); /* end points either on the end of content-type or on the end of line */
+	if(end==start)
+		return -4;
+	if(*end='\0'){
+		strcpy(ctype, start); 	/* Copy the content-type */
+		return 0;
+	}
+	*end='\0';
+	strcpy(ctype, start); 	/* Copy the content-type */
+	start=end+1;
+	encoding[0]='\0';
+	start=strstr(start, "charset=");
+	if(start==NULL)
+		return 0; 	/* charset is optional */
+	start+=8; 		/* content-type starting character */
+	for(end=start; *end!='\0' && *end!=' ' && *end!='\n'; end++); /* end points either on the end of content-type or on the end of line */
+	if(end==start)
+		return 0;	/* optional charset value is missing */ 
+	*end='\0';
+	strcpy(encoding, start); 	/* Copy the content-type */
+
+	return 0;		/* Success */
+}
+
+
+int main(int argc, char*argv[]) {
+	char *tmp;
+	int i, err;
+  	long nburls;
+	int a=2;
+
   	struct timeval T;
 	time_t now, starttime=-1, stoptime=-1;
   	struct tm *timeinfo;
 	struct tm timein;
 
 	pid_t pid;
+
 	if ((pid = getpid()) < 0) {
 	  perror("unable to get pid");
 	};
@@ -372,7 +425,7 @@ int main(int argc, char*argv[]) {
 			break;
 		exec sql connect to :pgtarget USER :pguser;
 		checkErrorCode();
-		M=Q=U=-1; // re-init error flags
+		
 		EXEC SQL BEGIN WORK;
 		EXEC SQL PREPARE get_url FROM :fetchquery ;	// SQL SELECT QUERY in #define
 		checkErrorCode();
@@ -389,224 +442,97 @@ int main(int argc, char*argv[]) {
 		nburls=0;
 		while(1){
 			EXEC SQL FETCH NEXT FROM url_cursor INTO :currentRootURL, :currentID;
-			//printf("[%d] is processing %s\n", pid, currentRootURL );
+			printf("[%d] is processing %s\n", pid, currentRootURL );
 			checkErrorCode();
 			if(sqlca.sqlcode!=0){
+				EXEC SQL COMMIT WORK;
 				break;
 			}
 			exec sql UPDATE node SET checked=now() WHERE id=:currentID;
 	                checkErrorCode();
 	                if(sqlca.sqlcode!=0){
+				EXEC SQL COMMIT WORK;
 	                        break;
 			}
-			strcpy(url_chunk[nburls], currentRootURL);
-			url_id[nburls]=currentID;
-			nburls++;
-		}
-		EXEC SQL COMMIT WORK;
-		curl_global_init(CURL_GLOBAL_ALL);
-		cm = curl_multi_init();
-		for (C = 0; C < nburls; ++C) {
-    			init(cm, C, 1);			/* Only headers at the moment */
-			getNextURL(TRUE, C); 		// initialize
-			currentBody[C].memory=malloc(1); // For the null char
-			currentBody[C].size=0;	// no char at this point  
-
-  		}
-		nburls=0; // reused for counting html and xml urls
-		while (U) {
-			curl_multi_perform(cm, &U);
-	 		if (U) {
- 				FD_ZERO(&R);
-				FD_ZERO(&W);
-				FD_ZERO(&E);
- 
-				if (curl_multi_fdset(cm, &R, &W, &E, &M)) {
-					fprintf(stderr, "E: curl_multi_fdset\n");
-					return EXIT_FAILURE;
-				}
- 
-				if (curl_multi_timeout(cm, &L)) {
-					fprintf(stderr, "E: curl_multi_timeout\n");
-					return EXIT_FAILURE;
-				}
-				if (L == -1)
-					L = 100;
-	 
-				if (M == -1) {
-					#ifdef WIN32
-					Sleep(L);
-					#else
-					sleep(L / 1000);
-					#endif
-				} else {
-					T.tv_sec = L/1000;
-					T.tv_usec = (L%1000)*1000;
- 					if (0 > select(M+1, &R, &W, &E, &T)) {
-						fprintf(stderr, "E: select(%i,,,,%li): %i: %s\n", M+1, L, errno, strerror(errno));
-        	  				return EXIT_FAILURE;
-        				}
-      				}
-			}
- 			while ((msg = curl_multi_info_read(cm, &Q))) {
-				if (msg->msg == CURLMSG_DONE) {
-					char *url, *eurl, *ct;
-					CURL *e = msg->easy_handle;
-					curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &nburls);
-					curl_easy_getinfo(msg->easy_handle, CURLINFO_EFFECTIVE_URL, &eurl);
-					curl_easy_getinfo(msg->easy_handle, CURLINFO_CONTENT_TYPE, &ct);
-					strcpy(url_enc[nburls],"LATIN1"); // Default Charset
-
-					if( (ct!=NULL) && 
-							(	(strstr(ct, "text/html")!=NULL) 
-								|| (strstr(ct, "text/xml")!=NULL)
-							)
-						){
-						// fprintf(stderr,"CT:[%s]\n", ct);
-						if(nburls<0 || nburls>=MAXCO){
-							printf("Ooops ! : nburls=%ld\nBye...\n", nburls);
-							exit(-1);
-						}
-						strcpy(currentEffectiveURL, eurl);
-						strcpy(currentURL, url_chunk[nburls]);
-						strcpy(url_chunk[nburls], eurl);
-						if(strstr(ct, "utf-8")!=NULL || strstr(ct, "UTF-8")!=NULL)
-							strcpy(url_enc[nburls],"UTF8");
-						//printf("Warning : %ld[%s] for %s\n", nburls, url_enc[nburls], url_chunk[nburls]);
-                                                exec sql BEGIN WORK;
-						exec sql UPDATE node SET effectiveurl=:currentEffectiveURL WHERE url=:currentURL;
-						checkErrorCode();
-						exec SQL END WORK;
-					}
-					curl_multi_remove_handle(cm, e);
-					curl_easy_cleanup(e);
-				}
-				else {
-        				fprintf(stderr, "E: CURLMsg (%d)\n", msg->msg);
-				}
-				nburls++;
-			}
-		}
-		for (C = 0; C < nburls; ++C) 
-			if(currentBody[C].memory){
-				free(currentBody[C].memory);
-			}
-
-		/***   Get links ****/
-		M=Q=U=-1; // re-init error flags
-		for (C = 0; C < nburls; ++C) {
-    			init(cm, C, 0);			/* Now get Full pages */
-			getNextURL(TRUE, C); // initialize
-			currentBody[C].memory=malloc(1); // for the null char
-			currentBody[C].size=0;	// no data at this point, only the terminal null char  
-  		}
-
-		while (U) {
-			curl_multi_perform(cm, &U);
-	 		if (U) {
- 				FD_ZERO(&R);
-				FD_ZERO(&W);
-				FD_ZERO(&E);
- 
-				if (curl_multi_fdset(cm, &R, &W, &E, &M)) {
-					fprintf(stderr, "E: curl_multi_fdset\n");
-					return EXIT_FAILURE;
-				}
- 
-				if (curl_multi_timeout(cm, &L)) {
-					fprintf(stderr, "E: curl_multi_timeout\n");
-					return EXIT_FAILURE;
-				}
-				if (L == -1)
-					L = 100;
-	 
-				if (M == -1) {
-					#ifdef WIN32
-					Sleep(L);
-					#else
-					sleep(L / 1000);
-					#endif
-				} else {
-					T.tv_sec = L/1000;
-					T.tv_usec = (L%1000)*1000;
- 					if (0 > select(M+1, &R, &W, &E, &T)) {
-						fprintf(stderr, "E: select(%i,,,,%li): %i: %s\n", M+1, L, errno, strerror(errno));
-        	  				return EXIT_FAILURE;
-        				}
-      				}
-			}
-
- 			while ((msg = curl_multi_info_read(cm, &Q))) {
-				if (msg->msg == CURLMSG_DONE) {
-					char *url;
-					CURL *e = msg->easy_handle;
-					curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &url);
-					//fprintf(stderr, "R: %d - %s <%s>\n", msg->data.result, curl_easy_strerror(msg->data.result), url);
-					curl_multi_remove_handle(cm, e);
-					curl_easy_cleanup(e);
-				}
-				else {
-        				fprintf(stderr, "E: CURLMsg (%d)\n", msg->msg);
-				}
-			}
-		}
-		for (C = 0; C < nburls; ++C) {
-			getNextURL(TRUE, C);
-			strcpy(currentURL, url_chunk[C]);
-			strcpy(currentRootURL, currentURL); 
-			tmp=strstr(currentRootURL,"://"); /* Extract root website URL */
-			if(tmp!=NULL)
-				tmp=strstr(tmp+3, "/");
-			if(tmp!=NULL)
-				*tmp='\0';
-			strcpy(currentEncoding, url_enc[C]);
-			currentID=url_id[C];
-			fprintf(stderr,"process %d is processing [%s], %d, encoding [%s]\n", pid, currentURL, C, url_enc[C]);
+			EXEC SQL COMMIT WORK;
 			
-  	 		while(getNextURL(FALSE, C)){
+			
+			/* Process effective url */
+			if((err=GetEffectiveURL(currentEffectiveURL, currentRootURL))<0)
+				fprintf(stderr, "Error %d while looking for effective URL of %s\n", err, currentRootURL);
+			else
+				fprintf(stderr, "Effective URL for %s is %s\n",  currentRootURL, currentEffectiveURL);
+			if(strcmp(currentRootURL, currentEffectiveURL)==0){		
 				exec sql BEGIN WORK;
-				exec sql SET CLIENT_ENCODING TO :currentEncoding; 
-				if(strlen(currentURL)>1 && (currentURL[0]=='/'||currentURL[0]=='.'||currentURL[0]=='.')){
+				exec sql UPDATE node SET effectiveurl=:currentEffectiveURL WHERE url=:currentRootURL;
+				checkErrorCode();
+				exec SQL END WORK;
+			}
+			strcpy(currentContentType,"text/html"); /* DEFAULT */
 
+			/* Process header */
+			if((err=GetHeader(currentContentType, currentEncoding, currentEffectiveURL))<0)
+				fprintf(stderr, "Error %d while fetching header of %s\n", err, currentEffectiveURL);
+			else{
+				fprintf(stderr, "ContentType for %s is [%s]\n",  currentEffectiveURL, currentContentType);
+				fprintf(stderr, "Encoding for %s is [%s]\n",  currentEffectiveURL, currentEncoding);
+			}
+			if(!strcmp(currentEncoding, "iso-8859-1") || !strcmp(currentEncoding, "ISO-8859-1"))
+				strcpy(currentEncoding, "LATIN1");
+			else
+				strcpy(currentEncoding, "UTF8");
+			if( (currentContentType!=NULL) && 
+				( !strcmp(currentContentType, "text/html") || 
+				  !strcmp(currentContentType, "text/xml")|| 
+				  !strcmp(currentContentType, "application/xhtml+xml")	
+				)){
+				getNextURL(TRUE, currentEffectiveURL); 		// initialize
+				/* Look for a charset info in the meta tags */
+				tmp=strstr(webpage, "charset=");
+				if(tmp!=NULL){
+					if(!strncmp(tmp+9, "iso-8859-1", 10)||!strncmp(tmp+10, "iso-8859-1", 10))
+						strcpy(currentEncoding, "LATIN1");
+					else
+						strcpy(currentEncoding, "UTF8");
+					printf("Detected Encoding: %s\n", currentEncoding);
+				}
+   			while(getNextURL(FALSE, currentEffectiveURL)){
+				// printf("Found : [%s]\n", currentURL);
+				exec sql BEGIN WORK;
+				exec sql SET CLIENT_ENCODING TO :currentEncoding;
+				if(strlen(currentURL)>1 && (currentURL[0]=='/'||currentURL[0]=='.'||currentURL[0]=='.')){
 					strcpy(currentRoot, currentRootURL);
 					if(currentURL[0]!='/' || currentRoot[strlen(currentRoot)-1]!='/')
 						strcat(currentRoot, currentURL);
-					else 
+					else
 						strcat(currentRoot, currentURL+1);
 				}
 				else
 					strcpy(currentRoot, currentURL);
-				if(strlen(currentRoot)>7 && (!strncmp(currentRoot, "http://",7) || !strncmp(currentRoot, "https://",8) || !strncmp(currentRoot, "ftp://",6) || !strncmp(currentRoot, "ftps://",7))){
-					exec sql INSERT INTO linksview ("from", "to", "leftcontext", "midcontext", "rightcontext") VALUES (:currentID, :currentRoot, :LinkLeftContext, :LinkMidContext, :LinkRightContext);			
-					checkErrorCode();
-				}
+				if(strlen(currentRoot)>7 && (!strncmp(currentRoot, "http://",7) 
+					|| !strncmp(currentRoot, "https://",8) || !strncmp(currentRoot, "ftp://",6) 
+					|| !strncmp(currentRoot, "ftps://",7))){
+						// printf("EXEC INSERT INTO linksview (from, to, left, mid, right) VALUES (%ld, %s, [%s], [%s], [%s])\n", currentID, currentRoot, LinkLeftContext, LinkMidContext, LinkRightContext);
+						exec sql INSERT INTO linksview ("from", "to", "leftcontext", "midcontext", "rightcontext") VALUES (:currentID, :currentRoot, :LinkLeftContext, :LinkMidContext, :LinkRightContext);
+						checkErrorCode();
+						}
 				exec SQL END WORK;
-					
-			}
-			//printf("Done.\n");
+			} /* Links extraction is finished */
+			/* Content extraction */
 			if(sqlca.sqlcode==0){
-				if(currentBody[C].size > MaxPageSize){
-					MaxPageSize=currentBody[C].size;
-					// fprintf(stderr, "*** New maximum page size %ld\n", MaxPageSize);
-				}
-				drop_content(currentBody[C].memory, "<!--", "-->");
-				drop_content(currentBody[C].memory, "<script ", "</script>");
-				drop_content(currentBody[C].memory, "<style ", "</style>");
-				xhtml2text(currentBody[C].memory);
-				drop_blanks(currentBody[C].memory);
+				drop_content(webpage, "<!--", "-->");
+				drop_content(webpage, "<script ", "</script>");
+				drop_content(webpage, "<style ", "</style>");
+				xhtml2text(webpage);
+				drop_blanks(webpage);
 				exec sql BEGIN WORK;
-				exec sql UPDATE node SET content=:currentBody[C].memory WHERE url=:url_chunk[C];
+				exec sql UPDATE node SET content=:webpage WHERE url=:currentEffectiveURL;
 				checkErrorCode();
 				exec SQL END WORK;
 			}
-			//printf("Content of %s:\n [%s]\n", url_chunk[C], currentBody[C].memory);
-			if(currentBody[C].memory){
-				//printf("Free2 :%d\n", C);
-				free(currentBody[C].memory);
+			free(webpage);
 			}
   		}
-		curl_multi_cleanup(cm);
-		curl_global_cleanup();
 		exec sql disconnect all;	
 	}
 	return EXIT_SUCCESS;

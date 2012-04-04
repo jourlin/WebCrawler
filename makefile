@@ -2,7 +2,7 @@
 # You might want to copy the sample config by executing :
 # mkdir ~/.anelosimus; cp cfg/* ~/.anelosimus
 
-include ~/.anelosimus-month04/webcrawler.cfg 
+include ~/.anelosimus/webcrawler.cfg 
 
 all:  bin/Anelosimus.Eximius
 clean:  DropDataBase
@@ -32,8 +32,8 @@ bin:
 	mkdir bin
 bin/Anelosimus.Eximius : bin ecpg/Anelosimus.Eximius.pgc 
 	cd ecpg
-	ecpg -t -I/usr/include/postgresql -I/usr/include/curl ecpg/Anelosimus.Eximius.pgc
-	gcc -g -DMAXCO=$(MAXCO) -D___FETCH___="$(FETCHQUERY)" -o bin/Anelosimus.Eximius -I /usr/include/postgresql/ ecpg/Anelosimus.Eximius.c -lecpg -lpq -lcurl
+	ecpg -t -I/usr/include/postgresql ecpg/Anelosimus.Eximius.pgc
+	gcc -D___FETCH___="$(FETCHQUERY)" -o bin/Anelosimus.Eximius -I /usr/include/postgresql/ ecpg/Anelosimus.Eximius.c -lecpg -lpq 
 initialise:	$(INITIALURLS)
 		sed "s:^:INSERT INTO node (url, score, depth) VALUES(':" $(INITIALURLS) | sed "s:$$:',1,0);:" > ./sql/initial.sql
 		psql -U$(USER) -h$(HOST) -p$(PORT) -d$(DBNAME)  -f ./sql/initial.sql
