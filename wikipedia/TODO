@@ -1,0 +1,10 @@
+This experimental setup needs a simple modification of PostgreSQL sources.
+src/backend/tsearch/dict_thesaurus.c makes uses of 16 bits unsigned integers
+(uint16) to represents terms. This limits the capacity of the dictionary to
+65535 terms. As there is more than 4 millions distinct title pages in the French Wikipedia, we modified the source code to make use of 32 bits unsigned integers
+(uint32). 
+
+What we have to do is to turn this modification into a new dictionary template,
+thesaurus32. 
+
+
