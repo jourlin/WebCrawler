@@ -1,0 +1,5 @@
+# dict_thesaurus32bits extension
+comment = 'text search dictionary template for thesaurus 32 bits'
+default_version = '1.0'
+module_pathname = '$libdir/dict_thesaurus32bits'
+relocatable = true

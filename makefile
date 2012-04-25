@@ -11,17 +11,25 @@ clean:  DropDataBase
 DropDataBase:
 	dropdb -U$(USER) -h$(HOST) -p$(PORT) $(DBNAME) 
 
-extensions: $(SHAREDIR)/extension/url.sql  $(SHAREDIR)/extension/url.so
-		
+extensions: $(SHAREDIR)/extension/url.sql  $(SHAREDIR)/extension/url.so $(SHAREDIR)/extension/dict_thesaurus32bits.control $(SHAREDIR)/extension/dict_thesaurus32bits--1.0.sql $(LIBDIR)/dict_thesaurus32bits.so
+
+$(SHAREDIR)/extension/dict_thesaurus32bits.control:	sql/dict_thesaurus32bits.control
+	sudo cp sql/dict_thesaurus32bits.control $(SHAREDIR)/extension/
+$(SHAREDIR)/extension/dict_thesaurus32bits--1.0.sql:	sql/dict_thesaurus32bits--1.0.sql
+	sudo cp sql/dict_thesaurus32bits--1.0.sql $(SHAREDIR)/extension/
+$(LIBDIR)/dict_thesaurus32bits.so:	c/dict_thesaurus32bits.so
+	sudo cp c/dict_thesaurus32bits.so $(LIBDIR)/
 $(SHAREDIR)/extension/url.so:	c/url.so
-	cp c/url.so $(SHAREDIR)/extension/url.so
-	chown postgres.postgres $(SHAREDIR)/extension/url.so
+	sudo cp c/url.so $(SHAREDIR)/extension/url.so
+	sudo chown postgres.postgres $(SHAREDIR)/extension/url.so
 $(SHAREDIR)/extension/url.sql:	
 	sed "s:_OBJWD_:"$(SHAREDIR)"/extension:g" sql/url.sql > $(SHAREDIR)/extension/url.sql
 	chown postgres.postgres $(SHAREDIR)/extension/url.sql
 c/url.so: c/url.c
-	echo $(SHAREDIR)
-	  cd c; make ; cd .. 
+	cd c; make ; cd .. 
+c/dict_thesaurus32bits.so:	c/dict_thesaurus32bits.c
+	cd c; make ; cd .. 
+
 CreateDatabase: 
 	createdb -U$(USER) -h$(HOST) -p$(PORT) $(DBNAME)
 CreateTables: $(SHAREDIR)/extension/url.sql $(SCORING) sql/CreateTables.sql

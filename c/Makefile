@@ -15,7 +15,7 @@
 
 include ~/.anelosimus/webcrawler.cfg
 
-MODULES = url 
+MODULES = url dict_thesaurus32bits
 
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
