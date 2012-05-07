@@ -1,6 +1,6 @@
 include ~/.anelosimus/webcrawler.cfg 
 
-all : migrate2PG 
+all : migrate2PG thesaurus dictionary
 frwiki-latest-page.sql.gz :
 	wget http://dumps.wikimedia.org/frwiki/latest/frwiki-latest-page.sql.gz
 frwiki-latest-page.sql : frwiki-latest-page.sql.gz
@@ -23,7 +23,9 @@ wikipedia.ths:	wikipedia.page.sql wikipedia.redirect.sql CreateTables.sql
 thesaurus:	wikipedia.ths CreateThesaurus.sql $(LIBDIR)/dict_thesaurus32bits.so $(SHAREDIR)/extension/dict_thesaurus32bits.control
 	sudo cp wikipedia.ths $(SHAREDIR)/tsearch_data/
 	psql -U$(USER) -h$(HOST) -p$(PORT) $(DBNAME) -f "CreateThesaurus.sql"
-dictionary:	dictionary.c
+wikipedia.dic:	wikipedia.ths
+		cat wikipedia.ths | sed 's/ \:.*//' > wikipedia.dic
+dictionary:	dictionary.c wikipedia.dic
 	gcc -o dictionary dictionary.c
-	cat wikipedia.ths | sed 's/ \:.*//' > wikipedia.dic
+	
 
