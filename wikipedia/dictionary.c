@@ -1,14 +1,60 @@
+/* 
+  dictionary.c : Extracts wikipedia article's titles from a UTF-8 text.
+
+    Copyright (C) 2012  Pierre Jourlin
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+***********************************************************************************
+  dictionary.c : Extrait les titres d'articles de wikipedia qui apparaissent dans un texte en UTF8.
+
+  Copyright (C) 2012 Pierre Jourlin — Tous droits réservés.
+ 
+  Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le
+  modifier suivant les termes de la “GNU General Public License” telle que
+  publiée par la Free Software Foundation : soit la version 3 de cette
+  licence, soit (à votre gré) toute version ultérieure.
+  
+  Ce programme est distribué dans l’espoir qu’il vous sera utile, mais SANS
+  AUCUNE GARANTIE : sans même la garantie implicite de COMMERCIALISABILITÉ
+  ni d’ADÉQUATION À UN OBJECTIF PARTICULIER. Consultez la Licence Générale
+  Publique GNU pour plus de détails.
+  
+  Vous devriez avoir reçu une copie de la Licence Générale Publique GNU avec
+  ce programme ; si ce n’est pas le cas, consultez :
+  <http://www.gnu.org/licenses/>.
+
+    Pierre Jourlin
+    L.I.A. / C.E.R.I.
+    339, chemin des Meinajariès
+    BP 1228 Agroparc
+    84911 AVIGNON CEDEX 9
+    France 
+    pierre.jourlin@univ-avignon.fr
+    Tel : +33 4 90 84 35 32
+    Fax : +33 4 90 84 35 01
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define MAXWORDS 	2000000
-#define TRUE 		1
-#define FALSE		0
 #define LINEMAXLENGTH	500
 
-#define TRUE 1
-#define FALSE 0
+#define TRUE 		1
+#define FALSE		0
 
 typedef struct Node {
 		struct Node *next[256];
@@ -23,6 +69,10 @@ typedef struct Term {
 		} TERM;
 
 unsigned long bytecount=0;
+NODE dict;
+TERM *thesaurus;	/* array of (multi-word) terms */
+
+	
 
 TERM* FindOrCreateNextAlternative(TERM *current, unsigned long int wordid)
 {
@@ -90,18 +140,42 @@ void Blank(NODE *node)
 			node->next[i]=NULL;
 	node->number=0;	
 }
+unsigned char* FindLonguestTerm(char * start)
+{
+	unsigned char word[LINEMAXLENGTH], *current=start, *longuest=NULL;
+	unsigned long int wordid;
+	TERM *tnode;
+	if(sscanf(current,"%s", word)==EOF)
+		return NULL;
+	wordid=DictFind(word, &dict); /* identify current word */
+	if(thesaurus[wordid].wordid==0) /* word was not recognized */
+		return NULL;
+	tnode=&thesaurus[wordid];
+	current+=strlen(word)+1;
+	if(tnode->isfinal)
+		longuest=current;
+	while(sscanf(current,"%s", word)!=EOF)
+	{
+		tnode=Find(tnode, DictFind(word, &dict));
+		if(tnode==NULL)
+			break;
+		current+= strlen(word)+1;
+		if(tnode->isfinal)
+			longuest=current;
+	}
+	return longuest;
+}
 
 void main(int argc, char *argv[])
 {
-	NODE dict, *cnode=&dict; /* dictionary (words) */
-	TERM *thesaurus;	/* array of (multi-word) terms */
+	NODE  *cnode=&dict; /* dictionary (words) */
 	TERM  *tnode;
 	unsigned char cchar;
 	unsigned long int nbwords=0, nbterms=0;
 	int i;
 	FILE *DictFile;
-	char word[LINEMAXLENGTH];
-	char input[LINEMAXLENGTH], *current;
+	unsigned char word[LINEMAXLENGTH];
+	unsigned char input[LINEMAXLENGTH], *current;
 
 	/* Initialisation */
 
@@ -189,33 +263,30 @@ void main(int argc, char *argv[])
 		
 	/* TEST */
 	printf("Enter a term followed by <enter> :\n");
+	unsigned char *eterm, term[LINEMAXLENGTH];  /* pointers to start and end of term */
 	while(!feof(stdin))
 	{
 		if(fgets(input, LINEMAXLENGTH, stdin)==NULL)
 			break;
 		current=input;
-		sscanf(current,"%s", word);
-		current+= strlen(word)+1;
-		nbwords=DictFind(word, &dict); /* identify current word */
-		if(thesaurus[nbwords].wordid==0)
+		while(sscanf(current,"%s", word)!=EOF)
 		{
-			printf("Search fail at %s\n", word);
-		}
-		else
-		{
-			tnode=&thesaurus[nbwords];
-			while(sscanf(current,"%s", word)!=EOF)
-			{
-				tnode=Find(tnode, DictFind(word, &dict));
-				if(tnode==NULL)
-					break;
+			eterm=FindLonguestTerm(current);
+			if(eterm==NULL)
+			{	/* Next word */
 				current+= strlen(word)+1;
 			}
-			if(tnode!=NULL && tnode->isfinal)
-				printf("The term was found\n");
 			else
-				printf("Search failed at %s\n", word);
+			{	/* A term was found */
+				strncpy(term, current, eterm-current);
+				term[eterm-current]='\0';
+				if(term[strlen(term)-1]==' '||term[strlen(term)-1]=='\n')
+					term[strlen(term)-1]='\0';				
+				printf("[%s]\n", term);
+				current=eterm;
+			}
 		}
+		
 	}
 }
 		
