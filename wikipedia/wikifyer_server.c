@@ -196,7 +196,9 @@ void main(int argc, char *argv[])
      	int n;
 
 	/* Initialisation */
-
+	#ifdef DEBUG
+		printf("WARNING : %s was compiled with DEBUG and will process a maximum of 1000 terms\n", argv[0]);
+	#endif
 	if(argc !=3)
 	{
 		fprintf(stderr, "Usage : %s dictionary_file port\n", argv[0]);
