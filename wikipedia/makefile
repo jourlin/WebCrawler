@@ -1,6 +1,8 @@
 include ~/.anelosimus/webcrawler.cfg 
 
-all : migrate2PG thesaurus dictionary
+all:	migrate2PG thesaurus wikifier_server wikifyer
+clean:	
+	rm *-latest-* *.ths wikipedia.* *~ wikifyer_server wikifyer_client
 frwiki-latest-page.sql.gz :
 	wget http://dumps.wikimedia.org/frwiki/latest/frwiki-latest-page.sql.gz
 frwiki-latest-page.sql : frwiki-latest-page.sql.gz
@@ -25,7 +27,10 @@ thesaurus:	wikipedia.ths CreateThesaurus.sql $(LIBDIR)/dict_thesaurus32bits.so $
 	psql -U$(USER) -h$(HOST) -p$(PORT) $(DBNAME) -f "CreateThesaurus.sql"
 wikipedia.dic:	wikipedia.ths
 		cat wikipedia.ths | sed 's/ \:.*//' > wikipedia.dic
-dictionary:	dictionary.c wikipedia.dic
-	gcc -o dictionary dictionary.c
+wikifyer_server:	wikifyer_server.c 
+	gcc -o wikifyer_server -DDEBUG="TRUE" wikifyer_server.c
+wikifyer_client:	wikifyer_client.c
+	gcc -o wikifyer_client wikifyer_client.c
+wikifyer:	wikifyer_server wikifyer_client
 	
 

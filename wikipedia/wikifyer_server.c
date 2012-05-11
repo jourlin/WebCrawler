@@ -49,9 +49,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #define MAXWORDS 	2000000
 #define LINEMAXLENGTH	500
+#define BUFFERMAXLENGTH	(1024*1024)
 
 #define TRUE 		1
 #define FALSE		0
@@ -73,6 +78,11 @@ NODE dict;
 TERM *thesaurus;	/* array of (multi-word) terms */
 
 	
+void error(const char *msg)
+{
+    perror(msg);
+    exit(1);
+}
 
 TERM* FindOrCreateNextAlternative(TERM *current, unsigned long int wordid)
 {
@@ -168,6 +178,7 @@ unsigned char* FindLonguestTerm(char * start)
 
 void main(int argc, char *argv[])
 {
+	/* Thesaurus variables */
 	NODE  *cnode=&dict; /* dictionary (words) */
 	TERM  *tnode;
 	unsigned char cchar;
@@ -177,11 +188,18 @@ void main(int argc, char *argv[])
 	unsigned char word[LINEMAXLENGTH];
 	unsigned char input[LINEMAXLENGTH], *current;
 
+	/* Server variables */
+	int sockfd, newsockfd, portno;
+     	socklen_t clilen;
+     	char buffer[BUFFERMAXLENGTH];
+     	struct sockaddr_in serv_addr, cli_addr;
+     	int n;
+
 	/* Initialisation */
 
-	if(argc !=2)
+	if(argc !=3)
 	{
-		fprintf(stderr, "Usage : %s Dictionary_file Document_file\n", argv[0]);
+		fprintf(stderr, "Usage : %s dictionary_file port\n", argv[0]);
 		exit(-1);
 	}
 	if((DictFile=fopen(argv[1], "r"))==NULL)
@@ -190,10 +208,16 @@ void main(int argc, char *argv[])
 		exit(-1);
 	}	
 	Blank(cnode);
-	
+	nbterms=0;
 	/* Load dictionary in RAM */
 	while(!feof(DictFile))
 	{
+		#ifdef DEBUG
+		nbterms++;
+		if(nbterms>1000) 
+			break;
+		#endif
+
 		cchar=fgetc(DictFile);
 		if(cchar=='\n'||cchar==' ')
 		{
@@ -243,6 +267,10 @@ void main(int argc, char *argv[])
 		if(fgets(input, LINEMAXLENGTH, DictFile)==NULL)
 			break;
 		nbterms++;
+#ifdef DEBUG
+		if(nbterms>1000) 
+			break;
+#endif
 		current=input;
 		sscanf(current,"%s", word);
 		current+= strlen(word)+1;
@@ -261,32 +289,69 @@ void main(int argc, char *argv[])
 	fclose(DictFile);
 	printf("Thesaurus loaded with %ld terms (%ld Mb)\n", nbterms, bytecount/1024/1024);
 		
-	/* TEST */
-	printf("Enter a term followed by <enter> :\n");
-	unsigned char *eterm, term[LINEMAXLENGTH];  /* pointers to start and end of term */
-	while(!feof(stdin))
-	{
-		if(fgets(input, LINEMAXLENGTH, stdin)==NULL)
-			break;
-		current=input;
-		while(sscanf(current,"%s", word)!=EOF)
-		{
-			eterm=FindLonguestTerm(current);
-			if(eterm==NULL)
-			{	/* Next word */
-				current+= strlen(word)+1;
+	/* Server code */
+	printf("Waiting for requests...\n");
+	unsigned char *eterm, term[LINEMAXLENGTH];	/* pointers to start and end of term */
+	while(1)					/* TODO : process signals */
+	{	
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
+     		if (sockfd < 0) 
+    	    	error("ERROR opening socket");
+   	  	bzero((char *) &serv_addr, sizeof(serv_addr));
+    	 	portno = atoi(argv[2]);
+    	 	serv_addr.sin_family = AF_INET;
+   	  	serv_addr.sin_addr.s_addr = INADDR_ANY;
+   	  	serv_addr.sin_port = htons(portno);
+   	  	if (bind(sockfd, (struct sockaddr *) &serv_addr,
+   	           sizeof(serv_addr)) < 0) 
+   	           error("ERROR on binding");	
+		listen(sockfd,5);
+     		clilen = sizeof(cli_addr);
+     		newsockfd = accept(sockfd, 
+     	          	 (struct sockaddr *) &cli_addr, 
+     	         	   &clilen);
+    	 	if (newsockfd < 0) 
+    		      	error("ERROR on accept");
+    		while(1) 				/* For each line sent by a client */			
+		{				     
+			bzero(buffer,BUFFERMAXLENGTH);
+     			n = read(newsockfd,buffer,BUFFERMAXLENGTH);
+     			if (n <= 0)  
+				break;			/* end of connection */
+     			else	
+				printf("Received: %s\n",buffer);
+			current=buffer;
+			input[0]='\0';
+			while(sscanf(current,"%s", word)!=EOF) /* For each possible term beginning */
+			{
+				eterm=FindLonguestTerm(current);
+				if(eterm==NULL)
+				{	/* Next word */
+					current+= strlen(word)+1;
+				}
+				else
+				{	/* A term was found */
+					strncpy(term+2, current, eterm-current);
+					term[eterm-current+1]='\0';
+					term[0]=term[1]='[';
+					while(term[strlen(term)-1]==' '||term[strlen(term)-1]=='\n') /* remove trailing blanks */
+						term[strlen(term)-1]='\0';
+					term[strlen(term)+2]='\0';
+					term[strlen(term)]=term[strlen(term)+1]=']';
+					printf("Sending %s\n", term);			
+					strcat(input, term);
+					strcat(input,"\n");	
+					current=eterm;
+				}
 			}
-			else
-			{	/* A term was found */
-				strncpy(term, current, eterm-current);
-				term[eterm-current]='\0';
-				if(term[strlen(term)-1]==' '||term[strlen(term)-1]=='\n')
-					term[strlen(term)-1]='\0';				
-				printf("[%s]\n", term);
-				current=eterm;
-			}
-		}
+			n = write(newsockfd,input,strlen(input));
+	     		if (n < 0) 
+				error("ERROR writing to socket");
 		
-	}
+		}
+		close(newsockfd);
+		close(sockfd);
+	}	
+     	return; 
 }
 		

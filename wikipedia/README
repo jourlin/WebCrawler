@@ -1,0 +1,7 @@
+USE:
+- start a server, e.g : ./wikifier_server wikipedia.dic 58023
+- wikify text, e.g. : ./wikifier_client localhost 58023 < test_in.txt > terms_out.txt
+
+WARNING : input text should be utf-8, lower case, without punctuation (except within term punctuation).
+TODO : Change client buffer max length
+
