@@ -1,7 +1,8 @@
 USE:
-- start a server, e.g : ./wikifier_server wikipedia.dic 58023
-- wikify text, e.g. : ./wikifier_client localhost 58023 < test_in.txt > terms_out.txt
+- start a server, e.g : ./wikifyer_server wikipedia.dic 58023
+- wikify text, e.g. : cat text_in.txt | tr '.;,:!?"' '\n\n\n\n\n\n\n'| tr 'A-ZÅÂÁÀÄÊÉÈËÏÍÎÖÓÔÖÚÙÛÑÇ' 'a-zåâáàäêéèëïíîöóôöúùûñç'| sed 's/[[:space:]][[:space:]]*/ /g' | sed 's/^[[:space:]]//' | ./wikifyer_client localhost 58023 | sed '/^$/d' > terms_out.txt
 
-WARNING : input text should be utf-8, lower case, without punctuation (except within term punctuation).
+WARNING : input text should be utf-8, lower case, without punctuation and words must be separated by a single space.
+          (that justifies the sequence of filters used before sending the text to wikifyer_client
 TODO : Change client buffer max length
 

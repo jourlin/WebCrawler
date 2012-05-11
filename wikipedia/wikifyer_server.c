@@ -346,6 +346,8 @@ void main(int argc, char *argv[])
 					current=eterm;
 				}
 			}
+			if(input[0]=='\0')
+				strcat(input,"\n");
 			n = write(newsockfd,input,strlen(input));
 	     		if (n < 0) 
 				error("ERROR writing to socket");
