@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 
-#define BUFFERMAXLENGTH	(1024*1024)
+#define BUFFERMAXLENGTH	(5*1024*1024)
 
 void error(const char *msg)
 {

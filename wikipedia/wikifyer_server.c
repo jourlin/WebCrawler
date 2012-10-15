@@ -55,7 +55,7 @@
 #include <netinet/in.h>
 
 #define MAXWORDS 	2000000
-#define LINEMAXLENGTH	500
+#define LINEMAXLENGTH	(1024*1024)
 #define BUFFERMAXLENGTH	(1024*1024)
 
 #define TRUE 		1
@@ -302,7 +302,7 @@ void main(int argc, char *argv[])
    	  	bzero((char *) &serv_addr, sizeof(serv_addr));
     	 	portno = atoi(argv[2]);
     	 	serv_addr.sin_family = AF_INET;
-   	  	serv_addr.sin_addr.s_addr = INADDR_ANY;
+   	  	serv_addr.sin_addr.s_addr = htons(INADDR_ANY);
    	  	serv_addr.sin_port = htons(portno);
    	  	if (bind(sockfd, (struct sockaddr *) &serv_addr,
    	           sizeof(serv_addr)) < 0) 

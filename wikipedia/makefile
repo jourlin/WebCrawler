@@ -28,7 +28,7 @@ thesaurus:	wikipedia.ths CreateThesaurus.sql $(LIBDIR)/dict_thesaurus32bits.so $
 wikipedia.dic:	wikipedia.ths
 		cat wikipedia.ths | sed 's/ \:.*//' > wikipedia.dic
 wikifyer_server:	wikifyer_server.c 
-	gcc -o wikifyer_server -DDEBUG="TRUE" wikifyer_server.c
+	gcc -o wikifyer_server wikifyer_server.c
 wikifyer_client:	wikifyer_client.c
 	gcc -o wikifyer_client wikifyer_client.c
 wikifyer:	wikifyer_server wikifyer_client
