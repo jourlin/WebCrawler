@@ -6,7 +6,7 @@
 ***********************************************************************
 
 - For approved developpers only : 
-> sudo apt-get git-core 
+> sudo apt-get install git-core 
 > ssh-keygen -t rsa -C "your_email@youremail.com"
 > send the file .ssh/id_rsa.pub to pierre.jourlin@univ-avignon.fr to be added.
 > wait for confirmation
