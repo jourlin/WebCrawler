@@ -13,7 +13,7 @@ commented lines in "~/.anelosimus/webcrawler.cfg"
 3. Add connection details in ~/.pgpass (this file is described in http://www.postgresql.org/docs/9.1/static/libpq-pgpass.html
 4. *** For PG's admins only *** 
 After every restart of the PostgreSQL server, execute 'sudo make extensions' to extend 
-Postgresql with the user-defined type 'url'
+Postgresql with the user-defined type 'url' (raspberry pi / raspbian : you might need to 'cp -r ~/.anelosimus /root/')
 5. Execute 'make CreateDatabase'
 6. Execute 'make CreateTables' 
 7. Execute 'make initialise' (fill table with initial urls)
