@@ -1,0 +1,42 @@
+YeSQL WebCrawler
+
+Sample requests
+
+************************
+Splitting url info : 
+************************
+
+SELECT url_pro(url), url_sub(url), url_dom(url), url_pat(url) 
+FROM node LIMIT 20;
+
+*************************
+Extract domain connexions
+*************************
+
+SELECT DISTINCT
+	CAST(url_dom(n1.url) AS TEXT)||CAST(url_top(n1.url) AS TEXT) as "de" ,
+	CAST(url_dom(n2.url) AS TEXT)||CAST(url_top(n2.url) AS TEXT) as "vers"
+FROM node as n1, links, node as n2 
+WHERE n1.id= links.from AND n2.id=links.to 
+AND (
+  CAST(url_dom(n1.url) AS TEXT) != CAST(url_dom(n2.url) AS TEXT)
+  OR
+  CAST(url_top(n1.url) AS TEXT) != CAST(url_top(n2.url) AS TEXT)
+)
+
+*********************************************************************************************************
+The 20 most referred domains, along their number of referrals, and a list of referrals and anchor texts :
+**********************************************************************************************************
+
+SELECT 
+	CAST(url_dom(n2.url) AS TEXT)||CAST(url_top(n2.url) AS TEXT), 
+	count(distinct "from") as ref, 
+	string_agg(CAST(url_dom(n1.url) AS TEXT)||'-'||midcontext, '|') 
+FROM node as n1, links, node as n2 
+WHERE n1.id = links.from 
+	AND n2.id=links.to 
+	AND CAST(url_dom(n1.url) AS TEXT) != CAST(url_dom(n2.url) AS TEXT) 
+GROUP BY 
+	CAST(url_dom(n2.url) AS TEXT)||CAST(url_top(n2.url) AS TEXT)
+ORDER BY count(distinct "from") 
+DESC LIMIT 20;
