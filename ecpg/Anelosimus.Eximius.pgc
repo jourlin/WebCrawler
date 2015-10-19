@@ -301,10 +301,9 @@ int GetEffectiveURL(char *out, char *in)
 	pclose(currentURLfile);	
 	if(Line==NULL)
 		return -2;
-	start=strstr(Line, "URL: ");
+	start=strstr(Line, "http://");
 	if(start==NULL)
 		return -3;
-	start+=5; 		/* effective URL starting character */
 	for(end=start; *end!='\0' && *end!=' '; end++); /* end points either on the end of URL or on the end of line */
 	if(*end=='\0')
 		return -4;
