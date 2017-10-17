@@ -14,6 +14,7 @@ commented lines in "~/.anelosimus/webcrawler.cfg"
 4. *** For PG's admins only *** 
 After every restart of the PostgreSQL server, execute 'sudo make extensions' to extend 
 Postgresql with the user-defined type 'url' (raspberry pi / raspbian : you might need to 'cp -r ~/.anelosimus /root/')
+If you are not root, but do own permissions on the PostgresSQL server, you must remove all "sudo" in the file "makefile"
 5. Execute 'make CreateDatabase'
 6. Execute 'make CreateTables' 
 7. Execute 'make initialise' (fill table with initial urls)
